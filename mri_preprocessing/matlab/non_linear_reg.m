@@ -1,18 +1,13 @@
-function [output_img] = non_linear_reg(input_path, pref, voxel_size)
-    
+function [def_field] = non_linear_reg(input_path)
     if ~isfile(input_path)
-       output_img = NaN;
+       def_field = NaN;
        disp([input_path " does not exist"]);
        return
     end
     input_path = convertStringsToChars(input_path);
     [input_dir,basename,ext] = fileparts(convertStringsToChars(input_path));
-    if nargin < 2
-        pref = 'non_linear_';
-    end
-    pref = convertStringsToChars(pref);
+    def_field = fullfile(input_dir, ['y_' basename ext]);
     
-    output_img = input_path;
     spm('defaults', 'FMRI');
     spm_jobman('initcfg');
     
@@ -58,25 +53,6 @@ function [output_img] = non_linear_reg(input_path, pref, voxel_size)
     matlabbatch{1}.spm.spatial.preproc.warp.write = [0 1];
     output_list = spm_jobman('run',matlabbatch);
     disp(output_list);
-    clear matlabbatch;
-    matlabbatch{1}.spm.spatial.normalise.write.subj.def = {
-        fullfile(input_dir, ['y_' basename ext])
-    };
-    matlabbatch{1}.spm.spatial.normalise.write.subj.resample = {
-        [input_path ',1']
-    };
-    matlabbatch{1}.spm.spatial.normalise.write.woptions.bb = [nan nan nan, nan nan nan];
-    if nargin > 2
-        vox = [voxel_size, voxel_size, voxel_size];
-    else
-        vox = [2 2 2];
-    end
-    matlabbatch{1}.spm.spatial.normalise.write.woptions.vox = vox;
-    matlabbatch{1}.spm.spatial.normalise.write.woptions.interp = 4;
-    if ~strcmp(pref, '')
-        matlabbatch{1}.spm.spatial.normalise.write.woptions.prefix = pref;
-    end
-    spm_jobman('run',matlabbatch);
     clear matlabbatch;
 end
 

@@ -11,26 +11,20 @@ def read(fname):
 
 
 setup(
-    name="data_identification",
-    version="0.20",
+    name="mri_preprocessing",
+    version="0.1",
     packages=find_packages(),
     scripts=[],
     zip_safe=True,
     include_package_data=True,
     # installed or upgraded on the target machine
-    install_requires=["numpy>1.18",
-                      "nibabel>=3.0.0",
-                      # "importlib.resources",
-                      "python_version>'3.7'",
-                      "pydicom>=2.0.0",
-                      "nilearn>=0.6",
-                      "pandas>=1.0.0"],
+    install_requires=["matlab"],
 
     package_data={
         # If any package contains *.txt or *.rst files, include them:
         "": ["*.txt", "*.rst"],
-        # And include any *.m files found in the "matlab_modules" package, too:
-        "matlab_modules": ["*.m"],
+        # And include any *.m files found in the "matlab" directory, too:
+        "matlab": ["*.m"],
         # Include all the executables from bin and data
         "bin": ["*"],
         "data": ["*"],
@@ -38,7 +32,7 @@ setup(
     # https://reinout.vanrees.org/weblog/2010/01/06/zest-releaser-entry-points.html
     # entry_points could be used to automagically download dcm2niix depending on the OS of the user
     entry_points={
-        'console_scripts': ['dicom_conversion = data_identification.scripts.dicom_conversion:main']
+        'console_scripts': ['dwi_preproc = mri_preprocessing.scripts.dwi_preproc:main']
         # 'console_scripts': ['dicom_conversion = data_identification.scripts.dicom_conversion:convert']
     },
 

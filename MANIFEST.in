@@ -1,1 +1,2 @@
 include mri_preprocessing/data/*
+include mri_preprocessing/matlab/*
