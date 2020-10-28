@@ -2,6 +2,11 @@ import shutil
 from pathlib import Path
 import os
 
+import nibabel as nib
+from scipy.stats import gmean
+import numpy as np
+from mri_preprocessing.modules import data_access
+
 """ Matlab modules management: store the path to the local matlab modules somewhere in the package install. 
 The first time the scripts are used, check if the matlab paths have been setup, if not, ask if you want to set them up.
 """
@@ -12,6 +17,27 @@ The first time the scripts are used, check if the matlab paths have been setup, 
 
 def my_join(folder, file):
     return str(Path(folder, file))
+
+
+def nii_gmean(nii_array, output_path):
+    """
+    IMPORTANT: the images affine must be the same as the output affine will be taken only from the first image
+    Parameters
+    ----------
+    nii_array : arraylike of nibabel.Nifti1Image or arraylike of image paths
+    output_path : str
+        path to the output image (will be created / overwritten)
+    Returns
+    -------
+
+    """
+    if all([Path(p).is_file() for p in nii_array]):
+        nii_array = np.array([nib.load(image) for image in nii_array])
+    data = np.stack(np.array([nii.get_fdata() for nii in nii_array]), axis=3)
+    gmeaned = gmean(data, axis=3)
+    output_path = Path(output_path).absolute()
+    nib.save(nib.Nifti1Image(gmeaned, nii_array[0].affine), output_path)
+    return output_path
 
 
 def b0_preproc(engine, img_path, output_folder):
@@ -141,4 +167,37 @@ def b1000_preproc(engine, img_path, output_folder, def_field):
         'nonlinear': output_nonlinear,
         'def_field': def_field
     }
+    return output_dict
+
+
+def preproc_folder(b0_list, b1000_list, output_folder):
+    """
+
+    Parameters
+    ----------
+    b0_list
+    b1000_list
+    output_folder
+
+    Returns
+    -------
+    Notes
+    -----
+    1) denoise all the images
+    2) rigid align all the images
+    """
+    if isinstance(b0_list, list):
+        return  # average the images into one
+
+
+def preproc_from_dataset_dict(json_path, output_root):
+    split_dwi_dict = data_access.get_split_dict_from_json(json_path)
+    output_dict = {}
+    for key in split_dwi_dict:
+        # TODO maybe make a rerun strategy mechanism
+        output_dir = Path(output_root, key)
+        os.makedirs(output_dir, exist_ok=True)
+        b0_list, b1000_list = data_access.get_dwi_lists_from_dict(split_dwi_dict[key])
+        b0_preproc_dict, b1000_preproc_dict = preproc_folder(b0_list, b1000_list, output_dir)
+        output_dict[key] = {'b0': b0_preproc_dict, 'b1000': b1000_preproc_dict}
     return output_dict
