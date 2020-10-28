@@ -7,8 +7,10 @@ import argparse
 
 import matlab.engine
 from mri_preprocessing.modules import preproc
-pp_module_path = '/home/tolhsadum/neuro_apps/MATLAB/HighDimNeuro/Patient-Preprocessing/'
-sr_module_path = '/home/tolhsadum/neuro_apps/MATLAB/HighDimNeuro/spm_superres/'
+# pp_module_path = '/home/tolhsadum/neuro_apps/MATLAB/HighDimNeuro/Patient-Preprocessing/'
+# sr_module_path = '/home/tolhsadum/neuro_apps/MATLAB/HighDimNeuro/spm_superres/'
+pp_module_path = '/home/chrisfoulon/neuro_apps/preproc_dwi/Patient-Preprocessing/'
+sr_module_path = '/home/chrisfoulon/neuro_apps/preproc_dwi/spm_superres/'
 
 
 def my_join(folder, file):
@@ -31,6 +33,15 @@ def main():
     engine.addpath(str(matlab_scripts_folder))
     engine.addpath(pp_module_path)
     engine.addpath(sr_module_path)
-    print('STARTING PREPROC')
-    b0_out_dict = preproc.b0_preproc(engine, args.input_list, args.output)
-    print(b0_out_dict)
+    """
+    TESTS
+    """
+    # TODO MODIFY Patient-Preprocessing/private/get_default_opt.m so the bb_spm option does not force the realign2mni
+    nii_dirs = [p for p in Path('/home/chrisfoulon/neuro_apps/data/dwi_preproc_tests/').rglob('*/split_dwi')]
+    b0_list = [p for pp in nii_dirs for p in [ip for ip in Path(pp).iterdir()] if 'bval0_' in str(p)]
+    b1000_list = [p for pp in nii_dirs for p in [ip for ip in Path(pp).iterdir()] if 'bval0_' not in str(p)]
+    for b0 in b0_list:
+        print('STARTING PREPROC with {}'.format(b0))
+        b0_out_dict = preproc.b0_preproc(engine, b0, args.output)
+        # b0_out_dict = preproc.b0_preproc(engine, args.input_list, args.output)
+        print(b0_out_dict)

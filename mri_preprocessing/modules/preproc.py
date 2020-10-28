@@ -19,6 +19,7 @@ def my_join(folder, file):
     return str(Path(folder, file))
 
 
+# TODO IMPORTANT we want to gmean only the images with THE SAME BVAL
 def nii_gmean(nii_array, output_path):
     """
     IMPORTANT: the images affine must be the same as the output affine will be taken only from the first image
