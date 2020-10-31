@@ -11,10 +11,8 @@ def reset_orient_mat(engine, img_path, output):
         output_path = Path(output, img_path.name)
         if output_path == img_path:
             output_path = Path(output, 'reset_' + img_path.name)
-    elif output.is_file():
-        output_path = output
     else:
-        raise ValueError('{} does not exist'.format(output))
+        output_path = output
     shutil.copyfile(img_path, output_path)
     engine.reset_orient_mat(str(output_path), nargout=0)
     return output_path
@@ -23,7 +21,7 @@ def reset_orient_mat(engine, img_path, output):
 def run_denoise(engine, img_path, output_folder):
     if not Path(img_path).is_file():
         raise ValueError('{} does not exist'.format(img_path))
-    if not Path(output_folder).is_file():
+    if not Path(output_folder).is_dir():
         raise ValueError('{} does not exist'.format(output_folder))
     return engine.run_denoise(str(img_path), str(output_folder))['pth']['im'][0]
 

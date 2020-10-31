@@ -18,7 +18,10 @@ setup(
     zip_safe=True,
     include_package_data=True,
     # installed or upgraded on the target machine
-    install_requires=["matlab"],
+    install_requires=["matlab",
+                      "nibabel",
+                      "numpy",
+                      "scipy"],
 
     package_data={
         # If any package contains *.txt or *.rst files, include them:

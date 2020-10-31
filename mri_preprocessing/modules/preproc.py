@@ -5,7 +5,7 @@ import os
 import nibabel as nib
 from scipy.stats import gmean
 import numpy as np
-from mri_preprocessing.modules import data_access
+from mri_preprocessing.modules import data_access, matlab_wrappers
 
 """ Matlab modules management: store the path to the local matlab modules somewhere in the package install. 
 The first time the scripts are used, check if the matlab paths have been setup, if not, ask if you want to set them up.
@@ -32,9 +32,20 @@ def nii_gmean(nii_array, output_path):
     -------
 
     """
-    if all([Path(p).is_file() for p in nii_array]):
-        nii_array = np.array([nib.load(image) for image in nii_array])
+    if len(nii_array) == 1:
+        if isinstance(nii_array, nib.Nifti1Image):
+            return nii_array[0].get_filename()
+        else:
+            return Path(nii_array[0])
+    for ind, n in enumerate(nii_array):
+        if not isinstance(n, nib.Nifti1Image):
+            p = Path(n)
+            if p.is_file():
+                nii_array[ind] = nib.load(p)
+            else:
+                raise ValueError('The array must contain either existing file paths or nibabel.Nifti1Image objects')
     data = np.stack(np.array([nii.get_fdata() for nii in nii_array]), axis=3)
+
     gmeaned = gmean(data, axis=3)
     output_path = Path(output_path).absolute()
     nib.save(nib.Nifti1Image(gmeaned, nii_array[0].affine), output_path)
@@ -189,16 +200,62 @@ def preproc_folder(b0_list, b1000_list, output_folder):
     """
     if isinstance(b0_list, list):
         return  # average the images into one
+    return
 
 
-def preproc_from_dataset_dict(json_path, output_root):
+def dwi_preproc_dict(engine, split_dict, output_folder):
+    """
+
+       for a split_dwi dict: (we can create the key{nii:bval} dict and just give the dict and the key to dwi_preproc_dict)
+       reset and denoise ALL images
+       gmean b0s and b1000s (from the denoise output)
+       rigid align b0s / affine
+       gmean b0s (rigid and affine)
+       coreg(gmean_b0, b1000s...) coreg to affine?
+       gmean b1000s gmean affine_b1000s
+       non_linear_align b0
+       apply transform rigid_b0 and rigid_b1000
+       """
+    output_folder = Path(output_folder)
+    if not Path.is_dir(output_folder):
+        os.makedirs(output_folder)
+    output_folder = str(output_folder)
+    tmp_folder = str(Path(output_folder, 'tmp'))
+    if not os.path.isdir(tmp_folder):
+        os.makedirs(tmp_folder)
+    b_dict = {}
+    for b in split_dict:
+        bval = split_dict[b]
+        print(bval)
+        if bval not in b_dict:
+            b_dict[bval] = [b]
+        else:
+            b_dict[bval].append(b)
+    b_denoised_dict = {}
+    for b in b_dict:
+        b_list = []
+        for img_path in b_dict[b]:
+            output_reset = matlab_wrappers.reset_orient_mat(engine, img_path, Path(tmp_folder, Path(img_path).name))
+            output_denoise = matlab_wrappers.run_denoise(engine, output_reset, output_folder)
+            b_list.append(output_denoise)
+        print('######################')
+        print('B_LIST')
+        print(b_list)
+        print('######################')
+        b_denoised_dict[b] = nii_gmean(b_list, Path(output_folder,
+                                                    Path(b_dict[b][0]).name.split('bval')[0] +
+                                                    'bval{}.nii'.format(int(round(b)))))
+    print(b_denoised_dict)
+    return b_denoised_dict
+
+
+def preproc_from_dataset_dict(engine, json_path, output_root):
     split_dwi_dict = data_access.get_split_dict_from_json(json_path)
     output_dict = {}
     for key in split_dwi_dict:
         # TODO maybe make a rerun strategy mechanism
         output_dir = Path(output_root, key)
         os.makedirs(output_dir, exist_ok=True)
-        b0_list, b1000_list = data_access.get_dwi_lists_from_dict(split_dwi_dict[key])
-        b0_preproc_dict, b1000_preproc_dict = preproc_folder(b0_list, b1000_list, output_dir)
-        output_dict[key] = {'b0': b0_preproc_dict, 'b1000': b1000_preproc_dict}
+        b_dict = dwi_preproc_dict(engine, split_dwi_dict[key], output_dir)
+        # output_dict[key] = {'b0': b0_preproc_dict, 'b1000': b1000_preproc_dict}
     return output_dict

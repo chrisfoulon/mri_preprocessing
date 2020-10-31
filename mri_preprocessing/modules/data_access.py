@@ -10,7 +10,7 @@ def get_dwi_lists_from_dict(split_dwi_dict):
 
 def get_split_dict_from_json(json_path):
     json_path = Path(json_path)
-    if not json_path.is_fifo():
+    if not json_path.is_file():
         raise ValueError('{} does not exist'.format(json_path))
     json_dict = json.load(open(json_path, 'r'))
     split_dwi_dict = {key: json_dict[key]['split_dwi'] for key in json_dict if 'split_dwi' in json_dict[key]}

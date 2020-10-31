@@ -6,7 +6,7 @@ function [output_img] = apply_transform(input_path, def_field, voxel_size, pref)
     end
     input_path = convertStringsToChars(input_path);
     [input_dir, basename, ext] = fileparts(input_path);
-    if nargin < 2 || strcmp(def_field, '') || isnan(def_field)
+    if nargin < 2 || strcmp(def_field, '')
         def_field = fullfile(input_dir, ['y_' basename ext]);
     end
     if nargin < 3
@@ -36,7 +36,6 @@ function [output_img] = apply_transform(input_path, def_field, voxel_size, pref)
     else
         output_img = input_path;
     end
-
     spm_jobman('run',matlabbatch);
     clear matlabbatch;
 end 
