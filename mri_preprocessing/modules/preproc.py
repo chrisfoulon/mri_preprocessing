@@ -57,7 +57,7 @@ def nii_gmean(nii_array, output_path):
     gmeaned = gmean(data, axis=3)
     output_path = Path(output_path).absolute()
     nib.save(nib.Nifti1Image(gmeaned, nii_array[0].affine), output_path)
-    return output_path
+    return str(output_path)
 
 
 def b0_preproc(engine, img_path, output_folder):
@@ -235,7 +235,6 @@ def dwi_preproc_dict(engine, split_dict, output_folder):
     b_dict = {}
     for b in split_dict:
         bval = split_dict[b]
-        print(bval)
         if bval not in b_dict:
             b_dict[bval] = [b]
         else:
@@ -248,8 +247,12 @@ def dwi_preproc_dict(engine, split_dict, output_folder):
         b_list = []
         for img_path in b_dict[b]:
             output_reset = matlab_wrappers.reset_orient_mat(engine, img_path, Path(tmp_folder, Path(img_path).name))
-            output_denoise = matlab_wrappers.run_denoise(engine, output_reset, tmp_folder, 'denoise_')
-            b_list.append(output_denoise)
+            out_denoise_test = Path(tmp_folder, 'denoise_' + Path(img_path).name)
+            if not out_denoise_test.is_file():
+                output_denoise = engine.run_denoise(output_reset, tmp_folder, 'denoise_')['pth']['im'][0]
+                b_list.append(output_denoise)
+            else:
+                b_list.append(str(out_denoise_test))
         b_denoised_dict[b] = nii_gmean(b_list, Path(output_folder,
                                                     format_filename(Path(b_list[0]).name, int(round(b)))))
         # now b_dict contains the denoised images (maybe not used later)
@@ -278,9 +281,9 @@ def dwi_preproc_dict(engine, split_dict, output_folder):
             if bval != 0.0:
                 # the first output image is the b0 used as a reference images for the coreg
                 rigid_aligned_dict[bval] = engine.run_coreg(
-                    [rigid_aligned_dict[0], b_denoised_dict[bval]], tmp_folder, 'co-rigid')['pth']['im'][1]
+                    [rigid_aligned_dict[0], b_denoised_dict[bval]], tmp_folder, 'co-rigid_')['pth']['im'][1]
                 affine_aligned_dict[bval] = engine.run_coreg(
-                    [affine_aligned_dict[0], b_denoised_dict[bval]], tmp_folder, 'co-affine')['pth']['im'][1]
+                    [affine_aligned_dict[0], b_denoised_dict[bval]], tmp_folder, 'co-affine_')['pth']['im'][1]
     else:
         for bval in b_denoised_dict:
             out_align = engine.my_align(b_denoised_dict[bval], tmp_folder)
@@ -292,9 +295,9 @@ def dwi_preproc_dict(engine, split_dict, output_folder):
     resliced_rigid_dict = {}
     resliced_affine_dict = {}
     for bval in rigid_aligned_dict:
-        resliced_rigid_dict[bval] = engine.run_bb(
+        resliced_rigid_dict[bval] = engine.run_bb_spm(
             rigid_aligned_dict[bval], output_folder, 2, 'resliced_')['pth']['im'][0]
-        resliced_affine_dict[bval] = engine.run_bb(
+        resliced_affine_dict[bval] = engine.run_bb_spm(
             affine_aligned_dict[bval], output_folder, 2, 'resliced_')['pth']['im'][0]
 
     non_linear_dict = {}
