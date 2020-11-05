@@ -44,7 +44,7 @@ def nii_gmean(nii_array, output_path):
         if isinstance(nii_array, nib.Nifti1Image):
             return shutil.copyfile(nii_array[0].get_filename(), output_path)
         else:
-            return shutil.copyfile(Path(nii_array[0]))
+            return shutil.copyfile(Path(nii_array[0]), output_path)
     for ind, n in enumerate(nii_array):
         if not isinstance(n, nib.Nifti1Image):
             p = Path(n)
