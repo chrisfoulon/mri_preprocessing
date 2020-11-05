@@ -19,6 +19,13 @@ def my_join(folder, file):
     return str(Path(folder, file))
 
 
+def format_filename(filename, bval):
+    if 'bval' in filename:
+        return filename.split('bval')[0] + 'bval{}.nii'.format(int(round(bval)))
+    else:
+        return filename.split('.nii')[0] + 'bval{}.nii'.format(int(round(bval)))
+
+
 # TODO IMPORTANT we want to gmean only the images with THE SAME BVAL
 def nii_gmean(nii_array, output_path):
     """
@@ -30,13 +37,14 @@ def nii_gmean(nii_array, output_path):
         path to the output image (will be created / overwritten)
     Returns
     -------
-
+        output_path : str
+            if nii_array contained only one image, this image will simply be copied in output_path
     """
     if len(nii_array) == 1:
         if isinstance(nii_array, nib.Nifti1Image):
-            return nii_array[0].get_filename()
+            return shutil.copyfile(nii_array[0].get_filename(), output_path)
         else:
-            return Path(nii_array[0])
+            return shutil.copyfile(Path(nii_array[0]))
     for ind, n in enumerate(nii_array):
         if not isinstance(n, nib.Nifti1Image):
             p = Path(n)
@@ -212,6 +220,7 @@ def dwi_preproc_dict(engine, split_dict, output_folder):
        rigid align b0s / affine
        gmean b0s (rigid and affine)
        coreg(gmean_b0, b1000s...) coreg to affine?
+       run_bb gmeaned rigid and affine (output)
        gmean b1000s gmean affine_b1000s
        non_linear_align b0
        apply transform rigid_b0 and rigid_b1000
@@ -231,22 +240,103 @@ def dwi_preproc_dict(engine, split_dict, output_folder):
             b_dict[bval] = [b]
         else:
             b_dict[bval].append(b)
+    print('######################')
+    print('RESET ORIGIN, DENOISING AND GEOMEAN')
+    print('######################')
     b_denoised_dict = {}
     for b in b_dict:
         b_list = []
         for img_path in b_dict[b]:
             output_reset = matlab_wrappers.reset_orient_mat(engine, img_path, Path(tmp_folder, Path(img_path).name))
-            output_denoise = matlab_wrappers.run_denoise(engine, output_reset, output_folder)
+            output_denoise = matlab_wrappers.run_denoise(engine, output_reset, tmp_folder, 'denoise_')
             b_list.append(output_denoise)
-        print('######################')
-        print('B_LIST')
-        print(b_list)
-        print('######################')
         b_denoised_dict[b] = nii_gmean(b_list, Path(output_folder,
-                                                    Path(b_dict[b][0]).name.split('bval')[0] +
-                                                    'bval{}.nii'.format(int(round(b)))))
-    print(b_denoised_dict)
-    return b_denoised_dict
+                                                    format_filename(Path(b_list[0]).name, int(round(b)))))
+        # now b_dict contains the denoised images (maybe not used later)
+        b_dict[b] = b_list
+
+    # b0_align_dict = {'rigid': [], 'affine': []}
+    # if 0 in b_denoised_dict:
+    #     b0_align_dict = {'rigid': [], 'affine': []}
+    #     for b0 in b_denoised_dict[0]:
+    #         out_align = engine.my_align(b0, tmp_folder)
+    #         b0_align_dict['rigid'].append(out_align['rigid'])
+    #         b0_align_dict['affine'].append(out_align['affine'])
+    print('######################')
+    print('COREG OF THE B1000s TO THE B0')
+    print('######################')
+    rigid_aligned_dict = {}
+    affine_aligned_dict = {}
+    if 0 in b_denoised_dict:
+        print('######################')
+        print('B0 RIGID AND AFFINE ALIGNMENT')
+        print('######################')
+        out_align = engine.my_align(b_denoised_dict[0], tmp_folder)
+        rigid_aligned_dict[0] = out_align['rigid']
+        affine_aligned_dict[0] = out_align['affine']
+        for bval in b_denoised_dict:
+            if bval != 0.0:
+                # the first output image is the b0 used as a reference images for the coreg
+                rigid_aligned_dict[bval] = engine.run_coreg(
+                    [rigid_aligned_dict[0], b_denoised_dict[bval]], tmp_folder, 'co-rigid')['pth']['im'][1]
+                affine_aligned_dict[bval] = engine.run_coreg(
+                    [affine_aligned_dict[0], b_denoised_dict[bval]], tmp_folder, 'co-affine')['pth']['im'][1]
+    else:
+        for bval in b_denoised_dict:
+            out_align = engine.my_align(b_denoised_dict[bval], tmp_folder)
+            rigid_aligned_dict[bval] = out_align['rigid']
+            affine_aligned_dict[bval] = out_align['affine']
+    print('######################')
+    print('RESLICING')
+    print('######################')
+    resliced_rigid_dict = {}
+    resliced_affine_dict = {}
+    for bval in rigid_aligned_dict:
+        resliced_rigid_dict[bval] = engine.run_bb(
+            rigid_aligned_dict[bval], output_folder, 2, 'resliced_')['pth']['im'][0]
+        resliced_affine_dict[bval] = engine.run_bb(
+            affine_aligned_dict[bval], output_folder, 2, 'resliced_')['pth']['im'][0]
+
+    non_linear_dict = {}
+    def_field_dict = {}
+    if 0 in rigid_aligned_dict:
+        print('######################')
+        print('NONLINEAR REG B0 (DEFORMATION FIELD CALCULATION)')
+        print('######################')
+        def_field_dict[0] = engine.non_linear_reg(rigid_aligned_dict[0])
+        print('######################')
+        print('APPLY NON-LINEAR + RESLICE')
+        print('######################')
+        for bval in rigid_aligned_dict:
+            def_field_dict[bval] = def_field_dict[0]
+            output_img = engine.apply_transform(rigid_aligned_dict[bval], def_field_dict[0])
+            output_nonlinear = my_join(output_folder, Path(output_img).name)
+            shutil.copyfile(rigid_aligned_dict[bval], output_nonlinear)
+            non_linear_dict[bval] = output_nonlinear
+    else:
+        for bval in rigid_aligned_dict:
+            print('######################')
+            print('NONLINEAR REG')
+            print('######################')
+            def_field_dict[bval] = engine.non_linear_reg(rigid_aligned_dict[0])
+            print('######################')
+            print('APPLY NON-LINEAR + RESLICE')
+            print('######################')
+            output_img = engine.apply_transform(rigid_aligned_dict[bval], def_field_dict[bval])
+            output_nonlinear = my_join(output_folder, Path(output_img).name)
+            shutil.copyfile(rigid_aligned_dict[bval], output_nonlinear)
+            non_linear_dict[bval] = output_nonlinear
+
+    output_dict = {
+        'denoise': b_denoised_dict,
+        'rigid': resliced_rigid_dict,
+        'affine': resliced_affine_dict,
+        'nonlinear': non_linear_dict,
+        'def_field': def_field_dict
+    }
+    print(output_dict)
+
+    return output_dict
 
 
 def preproc_from_dataset_dict(engine, json_path, output_root):

@@ -1,5 +1,6 @@
 from pathlib import Path
 import shutil
+import os
 
 
 def reset_orient_mat(engine, img_path, output):
@@ -18,12 +19,20 @@ def reset_orient_mat(engine, img_path, output):
     return output_path
 
 
-def run_denoise(engine, img_path, output_folder):
-    if not Path(img_path).is_file():
+def run_denoise(engine, img_path, output_folder, pref='denoise_'):
+    img_path = Path(img_path)
+    if not img_path.is_file():
         raise ValueError('{} does not exist'.format(img_path))
     if not Path(output_folder).is_dir():
         raise ValueError('{} does not exist'.format(output_folder))
-    return engine.run_denoise(str(img_path), str(output_folder))['pth']['im'][0]
+    tmp_denoise = engine.run_denoise(str(img_path), str(output_folder))['pth']['im'][0]
+    if pref is not None or pref != '':
+        output_denoise = Path(output_folder, pref + Path(tmp_denoise.name))
+        shutil.copyfile(tmp_denoise, output_denoise)
+        os.remove(tmp_denoise)
+    else:
+        output_denoise = tmp_denoise
+    return output_denoise
 
 
 def run_bb_spm(engine, img_path, output_folder, voxel_size):
