@@ -241,6 +241,11 @@ def dwi_preproc_dict(engine, split_dict, output_folder):
             b_dict[bval] = [b]
         else:
             b_dict[bval].append(b)
+
+    if 0 not in b_dict or len(b_dict) == 1:
+        print('B0 NOT FOUND IN {} OR ONLY CONTAINS ONE DWI THE FOLDER WILL THEN BE IGNORED')
+        shutil.rmtree(output_folder)
+        return {}
     print('######################')
     print('RESET ORIGIN, DENOISING AND GEOMEAN')
     print('######################')
@@ -267,30 +272,51 @@ def dwi_preproc_dict(engine, split_dict, output_folder):
     #         out_align = engine.my_align(b0, tmp_folder)
     #         b0_align_dict['rigid'].append(out_align['rigid'])
     #         b0_align_dict['affine'].append(out_align['affine'])
+
     print('######################')
-    print('COREG OF THE B1000s TO THE B0')
+    print('RIGID AND AFFINE ALIGNMENT OF THE GEOMEAN IMAGES')
     print('######################')
     rigid_aligned_dict = {}
     affine_aligned_dict = {}
-    if 0 in b_denoised_dict:
-        print('######################')
-        print('B0 RIGID AND AFFINE ALIGNMENT')
-        print('######################')
-        out_align = engine.my_align(b_denoised_dict[0], tmp_folder)
-        rigid_aligned_dict[0] = out_align['rigid']
-        affine_aligned_dict[0] = out_align['affine']
-        for bval in b_denoised_dict:
-            if bval != 0.0:
-                # the first output image is the b0 used as a reference images for the coreg
-                rigid_aligned_dict[bval] = engine.run_coreg(
-                    [rigid_aligned_dict[0], b_denoised_dict[bval]], tmp_folder, 'co-rigid_')['pth']['im'][1]
-                affine_aligned_dict[bval] = engine.run_coreg(
-                    [affine_aligned_dict[0], b_denoised_dict[bval]], tmp_folder, 'co-affine_')['pth']['im'][1]
-    else:
-        for bval in b_denoised_dict:
-            out_align = engine.my_align(b_denoised_dict[bval], tmp_folder)
-            rigid_aligned_dict[bval] = out_align['rigid']
-            affine_aligned_dict[bval] = out_align['affine']
+    for bval in b_denoised_dict:
+        out_align = engine.my_align(b_denoised_dict[bval], tmp_folder)
+        rigid_aligned_dict[bval] = out_align['rigid']
+        affine_aligned_dict[bval] = out_align['affine']
+
+    print('######################')
+    print('COREG OF THE B1000s TO THE B0')
+    print('######################')
+    bval_list = [0] + [k for k in rigid_aligned_dict if k != 0]
+    denoised_images_list = [rigid_aligned_dict[k] for k in bval_list]
+    co_rigid_aligned_list = engine.run_coreg(denoised_images_list, tmp_folder, 'co-rigid_')['pth']['im']
+    co_affine_aligned_list = engine.run_coreg(denoised_images_list, tmp_folder, 'co-affine_')['pth']['im']
+    for ind, bval in enumerate(bval_list):
+        rigid_aligned_dict[bval] = co_rigid_aligned_list[ind]
+        affine_aligned_dict[bval] = co_affine_aligned_list[ind]
+    # if 0 in b_denoised_dict:
+    #     print('######################')
+    #     print('B0 RIGID AND AFFINE ALIGNMENT')
+    #     print('######################')
+    #     out_align = engine.my_align(b_denoised_dict[0], tmp_folder)
+    #     rigid_aligned_dict[0] = out_align['rigid']
+    #     affine_aligned_dict[0] = out_align['affine']
+    #     input('CHECK RIGID IMAGE : {}'.format(rigid_aligned_dict[0]))
+    #     input('CHECK AFFINE IMAGE : {}'.format(affine_aligned_dict[0]))
+    #     for bval in b_denoised_dict:
+    #         if bval != 0.0:
+    #             # the first output image is the b0 used as a reference images for the coreg
+    #             rigid_aligned_dict[bval] = engine.run_coreg(
+    #                 [rigid_aligned_dict[0], b_denoised_dict[bval]], tmp_folder, 'co-rigid_')['pth']['im'][1]
+    #             affine_aligned_dict[bval] = engine.run_coreg(
+    #                 [affine_aligned_dict[0], b_denoised_dict[bval]], tmp_folder, 'co-affine_')['pth']['im'][1]
+    #
+    #     input('CHECK RIGID IMAGE : {}'.format(rigid_aligned_dict[0]))
+    #     input('CHECK AFFINE IMAGE : {}'.format(affine_aligned_dict[0]))
+    # else:
+    #     for bval in b_denoised_dict:
+    #         out_align = engine.my_align(b_denoised_dict[bval], tmp_folder)
+    #         rigid_aligned_dict[bval] = out_align['rigid']
+    #         affine_aligned_dict[bval] = out_align['affine']
     print('######################')
     print('RESLICING')
     print('######################')
