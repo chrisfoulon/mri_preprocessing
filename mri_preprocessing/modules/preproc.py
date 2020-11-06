@@ -323,7 +323,7 @@ def dwi_preproc_dict(engine, split_dict, output_folder):
             print('######################')
             print('NONLINEAR REG')
             print('######################')
-            def_field_dict[bval] = engine.non_linear_reg(rigid_aligned_dict[0])
+            def_field_dict[bval] = engine.non_linear_reg(rigid_aligned_dict[bval])
             print('######################')
             print('APPLY NON-LINEAR + RESLICE')
             print('######################')
