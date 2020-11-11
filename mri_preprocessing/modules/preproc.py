@@ -1,7 +1,11 @@
 import shutil
 from pathlib import Path
 import os
+import importlib_resources as rsc
 
+import matlab.engine
+from multiprocessing.dummy import Pool as ThreadPool
+import multiprocessing
 import nibabel as nib
 from scipy.stats import gmean
 import numpy as np
@@ -11,8 +15,10 @@ from mri_preprocessing.modules import data_access, matlab_wrappers
 The first time the scripts are used, check if the matlab paths have been setup, if not, ask if you want to set them up.
 """
 
-# pp_module_path = '/home/tolhsadum/neuro_apps/MATLAB/HighDimNeuro/Patient-Preprocessing/'
-# sr_module_path = '/home/tolhsadum/neuro_apps/MATLAB/HighDimNeuro/spm_superres/'
+pp_module_path = '/home/tolhsadum/neuro_apps/MATLAB/HighDimNeuro/Patient-Preprocessing/'
+sr_module_path = '/home/tolhsadum/neuro_apps/MATLAB/HighDimNeuro/spm_superres/'
+# pp_module_path = '/home/chrisfoulon/neuro_apps/preproc_dwi/Patient-Preprocessing/'
+# sr_module_path = '/home/chrisfoulon/neuro_apps/preproc_dwi/spm_superres/'
 
 
 def my_join(folder, file):
@@ -370,13 +376,39 @@ def dwi_preproc_dict(engine, split_dict, output_folder):
     return output_dict
 
 
-def preproc_from_dataset_dict(engine, json_path, output_root):
+def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root):
+    matlab_scripts_folder = rsc.files('mri_preprocessing.matlab')
+
+    engine = matlab.engine.start_matlab()
+    engine.addpath(str(matlab_scripts_folder))
+    engine.addpath(pp_module_path)
+    engine.addpath(sr_module_path)
+    output_dir = Path(output_root, key)
+    os.makedirs(output_dir, exist_ok=True)
+    b_dict = dwi_preproc_dict(engine, split_dwi_dict[key], output_dir)
+    return {key: b_dict}
+
+
+def preproc_from_dataset_dict(json_path, output_root, nb_cores=-1):
     split_dwi_dict = data_access.get_split_dict_from_json(json_path)
+    if nb_cores == -1:
+        nb_cores = multiprocessing.cpu_count()
+    pool = ThreadPool(nb_cores)
+
+    keys_list = [k for k in split_dwi_dict]
+    list_of_output_dict = pool.map(
+        lambda key: partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root), keys_list)
+
+    pool.close()
+    pool.join()
+    # for key in split_dwi_dict:
+    #     # TODO maybe make a rerun strategy mechanism
+    #     output_dir = Path(output_root, key)
+    #     os.makedirs(output_dir, exist_ok=True)
+    #     b_dict = dwi_preproc_dict(engine, split_dwi_dict[key], output_dir)
+    #     output_dict[key] = b_dict
+
     output_dict = {}
-    for key in split_dwi_dict:
-        # TODO maybe make a rerun strategy mechanism
-        output_dir = Path(output_root, key)
-        os.makedirs(output_dir, exist_ok=True)
-        b_dict = dwi_preproc_dict(engine, split_dwi_dict[key], output_dir)
-        # output_dict[key] = {'b0': b0_preproc_dict, 'b1000': b1000_preproc_dict}
+    for d in list_of_output_dict:
+        output_dict.update(d)
     return output_dict

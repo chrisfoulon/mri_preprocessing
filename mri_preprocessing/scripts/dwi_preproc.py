@@ -8,8 +8,8 @@ import json
 
 import matlab.engine
 from mri_preprocessing.modules import preproc
-pp_module_path = '/home/tolhsadum/neuro_apps/MATLAB/HighDimNeuro/Patient-Preprocessing/'
-sr_module_path = '/home/tolhsadum/neuro_apps/MATLAB/HighDimNeuro/spm_superres/'
+# pp_module_path = '/home/tolhsadum/neuro_apps/MATLAB/HighDimNeuro/Patient-Preprocessing/'
+# sr_module_path = '/home/tolhsadum/neuro_apps/MATLAB/HighDimNeuro/spm_superres/'
 # pp_module_path = '/home/chrisfoulon/neuro_apps/preproc_dwi/Patient-Preprocessing/'
 # sr_module_path = '/home/chrisfoulon/neuro_apps/preproc_dwi/spm_superres/'
 
@@ -29,13 +29,13 @@ def main():
     parser.add_argument('-o', '--output', type=str, help='output folder')
     args = parser.parse_args()
     # TODO
-    matlab_scripts_folder = rsc.files('mri_preprocessing.matlab')
-    print(matlab_scripts_folder)
-
-    engine = matlab.engine.start_matlab()
-    engine.addpath(str(matlab_scripts_folder))
-    engine.addpath(pp_module_path)
-    engine.addpath(sr_module_path)
+    # matlab_scripts_folder = rsc.files('mri_preprocessing.matlab')
+    # print(matlab_scripts_folder)
+    #
+    # engine = matlab.engine.start_matlab()
+    # engine.addpath(str(matlab_scripts_folder))
+    # engine.addpath(pp_module_path)
+    # engine.addpath(sr_module_path)
     """
     TESTS
     engine.run_coreg({'a': 2, 'b': 3}, 'toto')
@@ -62,7 +62,10 @@ def main():
     output_root = Path(args.output)
     if not output_root.is_dir():
         raise ValueError('{} is not an existing json'.format(output_root))
-    preproc.preproc_from_dataset_dict(engine, json_dict, output_root)
+    output_preproc_dict = preproc.preproc_from_dataset_dict(json_dict, output_root)
+    output_json_file_path = Path(output_root, '__final_preproc_dict.json')
+    with open(output_json_file_path, 'w+') as out_file:
+        json.dump(output_preproc_dict, out_file, indent=4)
 
     return
     # # TODO MODIFY Patient-Preprocessing/private/get_default_opt.m so the bb_spm option does not force the realign2mni
