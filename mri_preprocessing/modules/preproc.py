@@ -1,6 +1,7 @@
 import shutil
 from pathlib import Path
 import os
+import json
 import importlib_resources as rsc
 
 import matlab.engine
@@ -68,136 +69,6 @@ def nii_gmean(nii_array, output_path):
     return str(output_path)
 
 
-def b0_preproc(engine, img_path, output_folder):
-    # engine.addpath(pp_module_path)
-    # engine.addpath(sr_module_path)
-    input_file = Path(img_path)
-    input_basename = input_file.name
-    denoise_basename = 'denoise_' + input_basename
-    # nonlinear_basename = 'nonlinear_' + input_basename
-    # Everything has to be a string otherwise matlab explodes because it's the best language ever
-    output_folder = Path(output_folder)
-    if not Path.is_dir(output_folder):
-        os.makedirs(output_folder)
-    output_folder = str(output_folder)
-    tmp_folder = str(Path(output_folder, 'tmp'))
-    if not os.path.isdir(tmp_folder):
-        os.makedirs(tmp_folder)
-    # preproc_image_path = os.path.join(output_folder, os.path.basename(input_file))
-    tmp_image_path = str(Path(tmp_folder, input_basename))
-    shutil.copyfile(str(input_file), tmp_image_path)
-
-    print('######################')
-    print('RESET ORIGIN')
-    print('######################')
-    engine.reset_orient_mat(str(tmp_image_path), nargout=0)
-    tmp_denoise = my_join(tmp_folder, denoise_basename)
-    shutil.copyfile(tmp_image_path, tmp_denoise)
-    print('######################')
-    print('DENOISING')
-    print('######################')
-    out_denoise = engine.run_denoise(tmp_denoise, output_folder)['pth']['im'][0]
-    # Will be created by run_denoise (RunPreproc call)
-    # out_denoise = my_join(output_folder, denoise_basename)
-    print('######################')
-    print('RIGID AND AFFINE ALIGNMENT TO MNI')
-    print('######################')
-    out_align = engine.my_align(out_denoise, tmp_folder)
-    tmp_rigid = out_align['rigid']
-    tmp_affine = out_align['affine']
-    print('######################')
-    print('APPLY RIGID + RESLICE')
-    print('######################')
-    out_rigid = engine.run_bb_spm(tmp_rigid, output_folder, 2)['pth']['im'][0]
-
-    print('######################')
-    print('APPLY AFFINE + RESLICE')
-    print('######################')
-    out_affine = engine.run_bb_spm(tmp_affine, output_folder, 2)['pth']['im'][0]
-
-    print('######################')
-    print('NON-LINEAR ALIGNMENT TO MNI')
-    print('######################')
-    def_field = engine.non_linear_reg(tmp_rigid)
-    print('######################')
-    print('APPLY NON-LINEAR + RESLICE')
-    print('######################')
-    output_img = engine.apply_transform(tmp_rigid)
-    output_nonlinear = my_join(output_folder, Path(output_img).name)
-    shutil.copyfile(tmp_rigid, output_nonlinear)
-    output_dict = {
-        'denoise': out_denoise,
-        'rigid': out_rigid,
-        'affine': out_affine,
-        'nonlinear': output_nonlinear,
-        'def_field': def_field
-    }
-    return output_dict
-
-
-def b1000_preproc(engine, img_path, output_folder, def_field):
-    """"""
-    input_file = Path(img_path)
-    input_basename = input_file.name
-    denoise_basename = 'denoise_' + input_basename
-    # nonlinear_basename = 'nonlinear_' + input_basename
-    # Everything has to be a string otherwise matlab explodes because it's the best language ever
-    output_folder = Path(output_folder)
-    if not Path.is_dir(output_folder):
-        os.makedirs(output_folder)
-    output_folder = str(output_folder)
-    tmp_folder = str(Path(output_folder, 'tmp'))
-    if not os.path.isdir(tmp_folder):
-        os.makedirs(tmp_folder)
-    # preproc_image_path = os.path.join(output_folder, os.path.basename(input_file))
-    tmp_image_path = str(Path(tmp_folder, input_basename))
-    shutil.copyfile(str(input_file), tmp_image_path)
-
-    print('######################')
-    print('RESET ORIGIN')
-    print('######################')
-    engine.reset_orient_mat(str(tmp_image_path), nargout=0)
-    tmp_denoise = my_join(tmp_folder, denoise_basename)
-    # output_nonlinear = my_join(output_folder, nonlinear_basename)
-    shutil.copyfile(tmp_image_path, tmp_denoise)
-    print('######################')
-    print('DENOISING')
-    print('######################')
-    out_denoise = engine.run_denoise(tmp_denoise, output_folder)['pth']['im'][0]
-    # Will be created by run_denoise (RunPreproc call)
-    # out_denoise = my_join(output_folder, denoise_basename)
-    print('######################')
-    print('RIGID AND AFFINE ALIGNMENT TO MNI')
-    print('######################')
-    out_align = engine.my_align(out_denoise, tmp_folder)
-    tmp_rigid = out_align['rigid']
-    tmp_affine = out_align['affine']
-    print('######################')
-    print('APPLY RIGID + RESLICE')
-    print('######################')
-    out_rigid = engine.run_bb_spm(tmp_rigid, output_folder, 2)['pth']['im'][0]
-
-    print('######################')
-    print('APPLY AFFINE + RESLICE')
-    print('######################')
-    out_affine = engine.run_bb_spm(tmp_affine, output_folder, 2)['pth']['im'][0]
-
-    print('######################')
-    print('APPLY NON-LINEAR + RESLICE')
-    print('######################')
-    output_img = engine.apply_transform(tmp_rigid)
-    output_nonlinear = my_join(output_folder, Path(output_img).name)
-    shutil.copyfile(tmp_rigid, output_nonlinear)
-    output_dict = {
-        'denoise': out_denoise,
-        'rigid': out_rigid,
-        'affine': out_affine,
-        'nonlinear': output_nonlinear,
-        'def_field': def_field
-    }
-    return output_dict
-
-
 def preproc_folder(b0_list, b1000_list, output_folder):
     """
 
@@ -219,7 +90,7 @@ def preproc_folder(b0_list, b1000_list, output_folder):
     return
 
 
-def dwi_preproc_dict(engine, split_dict, output_folder):
+def dwi_preproc_dict(engine, split_dict, output_folder, rerun_strat='resume'):
     """
 
        for a split_dwi dict: (we can create the key{nii:bval} dict and just give the dict and the key to dwi_preproc_dict)
@@ -234,8 +105,20 @@ def dwi_preproc_dict(engine, split_dict, output_folder):
        apply transform rigid_b0 and rigid_b1000
        """
     output_folder = Path(output_folder)
-    if not Path.is_dir(output_folder):
+    if output_folder.is_dir():
+        if rerun_strat == 'delete':
+            shutil.rmtree(output_folder)
+        if rerun_strat == 'resume':
+            integrity = data_access.check_output_integrity(output_folder)
+            if integrity:
+                print('{} has already been preprocessed it will then be skipped'.format(output_folder))
+            else:
+                print('Integrity check in {} detected an error, '
+                      'the folder is then erased and preprocessed again'.format(output_folder))
+                shutil.rmtree(output_folder)
+    if not output_folder.is_dir():
         os.makedirs(output_folder)
+
     output_folder = str(output_folder)
     tmp_folder = str(Path(output_folder, 'tmp'))
     if not os.path.isdir(tmp_folder):
@@ -299,30 +182,6 @@ def dwi_preproc_dict(engine, split_dict, output_folder):
     for ind, bval in enumerate(bval_list):
         rigid_aligned_dict[bval] = co_rigid_aligned_list[ind]
         affine_aligned_dict[bval] = co_affine_aligned_list[ind]
-    # if 0 in b_denoised_dict:
-    #     print('######################')
-    #     print('B0 RIGID AND AFFINE ALIGNMENT')
-    #     print('######################')
-    #     out_align = engine.my_align(b_denoised_dict[0], tmp_folder)
-    #     rigid_aligned_dict[0] = out_align['rigid']
-    #     affine_aligned_dict[0] = out_align['affine']
-    #     input('CHECK RIGID IMAGE : {}'.format(rigid_aligned_dict[0]))
-    #     input('CHECK AFFINE IMAGE : {}'.format(affine_aligned_dict[0]))
-    #     for bval in b_denoised_dict:
-    #         if bval != 0.0:
-    #             # the first output image is the b0 used as a reference images for the coreg
-    #             rigid_aligned_dict[bval] = engine.run_coreg(
-    #                 [rigid_aligned_dict[0], b_denoised_dict[bval]], tmp_folder, 'co-rigid_')['pth']['im'][1]
-    #             affine_aligned_dict[bval] = engine.run_coreg(
-    #                 [affine_aligned_dict[0], b_denoised_dict[bval]], tmp_folder, 'co-affine_')['pth']['im'][1]
-    #
-    #     input('CHECK RIGID IMAGE : {}'.format(rigid_aligned_dict[0]))
-    #     input('CHECK AFFINE IMAGE : {}'.format(affine_aligned_dict[0]))
-    # else:
-    #     for bval in b_denoised_dict:
-    #         out_align = engine.my_align(b_denoised_dict[bval], tmp_folder)
-    #         rigid_aligned_dict[bval] = out_align['rigid']
-    #         affine_aligned_dict[bval] = out_align['affine']
     print('######################')
     print('RESLICING')
     print('######################')
@@ -386,11 +245,46 @@ def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root):
     output_dir = Path(output_root, key)
     os.makedirs(output_dir, exist_ok=True)
     b_dict = dwi_preproc_dict(engine, split_dwi_dict[key], output_dir)
+    if not b_dict:
+        return {}
+    save_dict = {key: b_dict}
+    with open(Path(output_dir, '__preproc_dict.json'), 'w+') as out_file:
+        json.dump(save_dict, out_file, indent=4)
     return {key: b_dict}
 
 
-def preproc_from_dataset_dict(json_path, output_root, nb_cores=-1):
+def preproc_from_dataset_dict(json_path, output_root, nb_cores=-1, group_same_output_folder=False):
     split_dwi_dict = data_access.get_split_dict_from_json(json_path)
+    # TODO Create a cleaned dict to feed the preproc (so we don't preproc twice the same images when there's orphans)
+    # TODO Create another dict listing the keys associated with grouped orphans to fill up the output dict with
+    # both keys having the same preproc output
+    # split_dwi_dict lists the split_dwi dict containted in the input json associated with their key
+    if group_same_output_folder:
+        json_path = Path(json_path)
+        if not json_path.is_file():
+            raise ValueError('{} does not exist'.format(json_path))
+        json_dict = json.load(open(json_path, 'r'))
+        output_dir_dict = {}
+        # As some dwi can be in the same output dir but not be stacked together, we associate the keys with output_dir
+        for key in split_dwi_dict:
+            out_dir = json_dict['output_dir']
+            if out_dir in output_dir_dict:
+                output_dir_dict[out_dir].update({key: split_dwi_dict[key]})
+            else:
+                output_dir_dict[out_dir] = {key: split_dwi_dict[key]}
+        split_dwi_dict = {}
+        key_matching_dict = {}
+        # Here we recreate split_dwi_dict with the split_dwi dict grouped by output_dir so we gather some of the orphans
+        # together ...
+        for output_dir in output_dir_dict:
+            for i, (k, v) in enumerate(output_dir_dict[output_dir].items()):
+                if i == 0:
+                    split_dwi_dict[k] = v
+                    key_matching_dict[k] = [v]
+                else:
+                    split_dwi_dict[k].update(v)
+                    key_matching_dict[k].append(v)
+
     if nb_cores == -1:
         nb_cores = multiprocessing.cpu_count()
     pool = ThreadPool(nb_cores)
@@ -411,4 +305,9 @@ def preproc_from_dataset_dict(json_path, output_root, nb_cores=-1):
     output_dict = {}
     for d in list_of_output_dict:
         output_dict.update(d)
+    if group_same_output_folder:
+        for key in output_dict:
+            for matched_key in key_matching_dict[key]:
+                output_dict[matched_key] = output_dict[key]
+
     return output_dict
