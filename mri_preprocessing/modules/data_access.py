@@ -53,8 +53,8 @@ def check_series(json_path):
     split_dwi_dict = get_split_dict_from_json(json_path)
     singleton_key_list = [s for s in split_dwi_dict if len(split_dwi_dict[s]) == 1]
     non_singleton_key_list = [s for s in split_dwi_dict if len(split_dwi_dict[s]) > 1]
-    series_dict = {get_attr_from_output_dict_key(json_dict, key, 'StudyInstanceUID')['Value']: key
-                   for key in non_singleton_key_list}
+    series_dict = {get_attr_from_output_dict_key(
+        json_dict, key, 'StudyInstanceUID')['Value']: key for key in non_singleton_key_list}
     real_singletons_list = [
         k for k in singleton_key_list if get_attr_from_output_dict_key(
             json_dict, k, 'StudyInstanceUID')['Value'] not in series_dict]
