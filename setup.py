@@ -21,7 +21,8 @@ setup(
     install_requires=["matlab",
                       "nibabel",
                       "numpy",
-                      "scipy"],
+                      "scipy",
+                      "pydicom"],
 
     package_data={
         # If any package contains *.txt or *.rst files, include them:

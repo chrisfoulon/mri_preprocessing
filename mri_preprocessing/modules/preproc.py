@@ -176,9 +176,10 @@ def dwi_preproc_dict(engine, split_dict, output_folder, rerun_strat='resume'):
     print('COREG OF THE B1000s TO THE B0')
     print('######################')
     bval_list = [0] + [k for k in rigid_aligned_dict if k != 0]
-    denoised_images_list = [rigid_aligned_dict[k] for k in bval_list]
-    co_rigid_aligned_list = engine.run_coreg(denoised_images_list, tmp_folder, 'co-rigid_')['pth']['im']
-    co_affine_aligned_list = engine.run_coreg(denoised_images_list, tmp_folder, 'co-affine_')['pth']['im']
+    denoised_rigid_images_list = [rigid_aligned_dict[k] for k in bval_list]
+    denoised_affine_images_list = [affine_aligned_dict[k] for k in bval_list]
+    co_rigid_aligned_list = engine.run_coreg(denoised_rigid_images_list, tmp_folder, 'co-rigid_')['pth']['im']
+    co_affine_aligned_list = engine.run_coreg(denoised_affine_images_list, tmp_folder, 'co-affine_')['pth']['im']
     for ind, bval in enumerate(bval_list):
         rigid_aligned_dict[bval] = co_rigid_aligned_list[ind]
         affine_aligned_dict[bval] = co_affine_aligned_list[ind]
@@ -220,7 +221,7 @@ def dwi_preproc_dict(engine, split_dict, output_folder, rerun_strat='resume'):
             print('######################')
             output_img = engine.apply_transform(rigid_aligned_dict[bval], def_field_dict[bval])
             output_nonlinear = my_join(output_folder, Path(output_img).name)
-            shutil.copyfile(rigid_aligned_dict[bval], output_nonlinear)
+            shutil.copyfile(output_img, output_nonlinear)
             non_linear_dict[bval] = output_nonlinear
 
     output_dict = {
@@ -253,37 +254,52 @@ def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root):
     return {key: b_dict}
 
 
-def preproc_from_dataset_dict(json_path, output_root, nb_cores=-1, group_same_output_folder=False):
+def preproc_from_dataset_dict(json_path, output_root, nb_cores=-1, pair_singletons=True):
     split_dwi_dict = data_access.get_split_dict_from_json(json_path)
     # TODO Create a cleaned dict to feed the preproc (so we don't preproc twice the same images when there's orphans)
     # TODO Create another dict listing the keys associated with grouped orphans to fill up the output dict with
     # both keys having the same preproc output
-    # split_dwi_dict lists the split_dwi dict containted in the input json associated with their key
-    if group_same_output_folder:
+
+    if pair_singletons:
         json_path = Path(json_path)
         if not json_path.is_file():
             raise ValueError('{} does not exist'.format(json_path))
         json_dict = json.load(open(json_path, 'r'))
-        output_dir_dict = {}
-        # As some dwi can be in the same output dir but not be stacked together, we associate the keys with output_dir
-        for key in split_dwi_dict:
-            out_dir = json_dict['output_dir']
-            if out_dir in output_dir_dict:
-                output_dir_dict[out_dir].update({key: split_dwi_dict[key]})
-            else:
-                output_dir_dict[out_dir] = {key: split_dwi_dict[key]}
-        split_dwi_dict = {}
-        key_matching_dict = {}
-        # Here we recreate split_dwi_dict with the split_dwi dict grouped by output_dir so we gather some of the orphans
-        # together ...
-        for output_dir in output_dir_dict:
-            for i, (k, v) in enumerate(output_dir_dict[output_dir].items()):
-                if i == 0:
-                    split_dwi_dict[k] = v
-                    key_matching_dict[k] = [v]
-                else:
-                    split_dwi_dict[k].update(v)
-                    key_matching_dict[k].append(v)
+        singleton_key_list = [s for s in split_dwi_dict if len(split_dwi_dict[s]) == 1]
+        new_split_dwi_dict = {k: split_dwi_dict[k] for k in split_dwi_dict if len(split_dwi_dict[k]) > 1}
+        singleton_attr_dict = {}
+        for key in singleton_key_list:
+            series = data_access.get_attr_from_output_dict_key(json_dict, key, 'StudyInstanceUID')['Value']
+            study = data_access.get_attr_from_output_dict_key(json_dict, key, 'StudyID')['Value']
+            found = False
+            for subkey in singleton_attr_dict:
+                if series == singleton_attr_dict[subkey]['series']:
+                    singleton_attr_dict[subkey]['paired_keys'].append(key)
+                    found = True
+            if not found:
+                for subkey in singleton_attr_dict:
+                    if study == singleton_attr_dict[subkey]['study']:
+                        if not found:
+                            singleton_attr_dict[subkey]['paired_keys'].append(key)
+                            found = True
+                        else:
+                            raise ValueError('StudyID {} matches more than one singleton'.format(study))
+            if not found:
+                singleton_attr_dict[key] = {
+                    'series': series,
+                    'study': study,
+                    'paired_keys': []
+                }
+        for key in singleton_attr_dict:
+            if singleton_attr_dict[key]['paired_keys']:
+                new_split_dwi_dict[key] = split_dwi_dict[key]
+                for k in singleton_attr_dict[key]['paired_keys']:
+                    new_split_dwi_dict[key].update(split_dwi_dict[k])
+        # singletons that could be paired with others are now replaced in the dict and the others have been removed
+        split_dwi_dict = new_split_dwi_dict
+        input(singleton_attr_dict)
+    else:
+        split_dwi_dict = {k: split_dwi_dict[k] for k in split_dwi_dict if len(split_dwi_dict[k]) >= 1}
 
     if nb_cores == -1:
         nb_cores = multiprocessing.cpu_count()
@@ -305,9 +321,8 @@ def preproc_from_dataset_dict(json_path, output_root, nb_cores=-1, group_same_ou
     output_dict = {}
     for d in list_of_output_dict:
         output_dict.update(d)
-    if group_same_output_folder:
-        for key in output_dict:
-            for matched_key in key_matching_dict[key]:
+    if pair_singletons:
+        for key in singleton_attr_dict:
+            for matched_key in singleton_attr_dict[key]['paired_keys']:
                 output_dict[matched_key] = output_dict[key]
-
     return output_dict
