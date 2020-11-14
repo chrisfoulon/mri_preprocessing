@@ -112,6 +112,7 @@ def dwi_preproc_dict(engine, split_dict, output_folder, rerun_strat='resume'):
             integrity = data_access.check_output_integrity(output_folder)
             if integrity:
                 print('{} has already been preprocessed it will then be skipped'.format(output_folder))
+                return json.load(open(Path(output_folder, '__preproc_dict.json'), 'r'))
             else:
                 print('Integrity check in {} detected an error, '
                       'the folder is then erased and preprocessed again'.format(output_folder))
@@ -265,39 +266,38 @@ def preproc_from_dataset_dict(json_path, output_root, nb_cores=-1, pair_singleto
         if not json_path.is_file():
             raise ValueError('{} does not exist'.format(json_path))
         json_dict = json.load(open(json_path, 'r'))
+        # List split dwi with only one volume
         singleton_key_list = [s for s in split_dwi_dict if len(split_dwi_dict[s]) == 1]
-        new_split_dwi_dict = {k: split_dwi_dict[k] for k in split_dwi_dict if len(split_dwi_dict[k]) > 1}
-        singleton_attr_dict = {}
+        # Separate the correctly formed dwi
+        non_singleton_key_list = [s for s in split_dwi_dict if len(split_dwi_dict[s]) > 1]
+        # List the series number of every correctly formed split dwi
+        series_dict = {data_access.get_attr_from_output_dict_key(
+            json_dict, key, 'StudyInstanceUID')['Value'][0]: key for key in non_singleton_key_list}
+        # Filter out the singletons with the same series as a correctly formed split dwi
+        matched_singeltons = {}
         for key in singleton_key_list:
-            series = data_access.get_attr_from_output_dict_key(json_dict, key, 'StudyInstanceUID')['Value']
-            study = data_access.get_attr_from_output_dict_key(json_dict, key, 'StudyID')['Value']
-            found = False
-            for subkey in singleton_attr_dict:
-                if series == singleton_attr_dict[subkey]['series']:
-                    singleton_attr_dict[subkey]['paired_keys'].append(key)
-                    found = True
-            if not found:
-                for subkey in singleton_attr_dict:
-                    if study == singleton_attr_dict[subkey]['study']:
-                        if not found:
-                            singleton_attr_dict[subkey]['paired_keys'].append(key)
-                            found = True
-                        else:
-                            raise ValueError('StudyID {} matches more than one singleton'.format(study))
-            if not found:
-                singleton_attr_dict[key] = {
-                    'series': series,
-                    'study': study,
-                    'paired_keys': []
-                }
-        for key in singleton_attr_dict:
-            if singleton_attr_dict[key]['paired_keys']:
-                new_split_dwi_dict[key] = split_dwi_dict[key]
-                for k in singleton_attr_dict[key]['paired_keys']:
-                    new_split_dwi_dict[key].update(split_dwi_dict[k])
-        # singletons that could be paired with others are now replaced in the dict and the others have been removed
-        split_dwi_dict = new_split_dwi_dict
-        input(singleton_attr_dict)
+            series = data_access.get_attr_from_output_dict_key(json_dict, key, 'StudyInstanceUID')['Value'][0]
+            if series not in series_dict:
+                if series not in matched_singeltons:
+                    matched_singeltons[series] = [key]
+                else:
+                    matched_singeltons[series].append(key)
+        # If the singletons cannot be matched with any other dwi we ignore them as we don't know what to do with it.
+        matched_split_dwi = {}
+        for series in list(matched_singeltons):
+            if len(matched_singeltons[series]) == 1:
+                del matched_singeltons[series]
+            else:
+                # We create merged split_dwi dictionaries associated with the common series of the singletons
+                matched_split_dwi[matched_singeltons[series][0]] = {}
+                for key in matched_singeltons[series]:
+                    matched_split_dwi[matched_singeltons[series][0]].update(split_dwi_dict[key])
+        # Now we create the curated split_dwi_dict
+        new_split_dwi = {}
+        for key in non_singleton_key_list:
+            new_split_dwi[key] = split_dwi_dict[key]
+        new_split_dwi.update(matched_split_dwi)
+        split_dwi_dict = new_split_dwi
     else:
         split_dwi_dict = {k: split_dwi_dict[k] for k in split_dwi_dict if len(split_dwi_dict[k]) >= 1}
 
@@ -322,7 +322,9 @@ def preproc_from_dataset_dict(json_path, output_root, nb_cores=-1, pair_singleto
     for d in list_of_output_dict:
         output_dict.update(d)
     if pair_singletons:
-        for key in singleton_attr_dict:
-            for matched_key in singleton_attr_dict[key]['paired_keys']:
+        # We duplicate the preproc output for the singletons to match with the keys of the conversion pipeline output
+        for key in matched_split_dwi:
+            for matched_key in matched_split_dwi[key]:
                 output_dict[matched_key] = output_dict[key]
+            del output_dict[key]
     return output_dict
