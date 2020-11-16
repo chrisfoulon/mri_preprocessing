@@ -233,6 +233,7 @@ def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_st
                 except OSError:
                     print('Could not delete {}, still trying to preprocess but please verify the ouput'.format(
                         output_dir))
+                    time.sleep(5)
         if rerun_strat == 'resume':
             integrity = data_access.check_output_integrity(output_dir)
             if integrity:
@@ -247,6 +248,7 @@ def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_st
                     except OSError:
                         print('Could not delete {}, still trying to preprocess but please verify the ouput'.format(
                             output_dir))
+                        time.sleep(5)
     if not output_dir.is_dir():
         os.makedirs(output_dir)
     matlab_scripts_folder = rsc.files('mri_preprocessing.matlab')
