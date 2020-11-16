@@ -1,6 +1,7 @@
 import shutil
 from pathlib import Path
 import os
+import time
 import json
 import importlib_resources as rsc
 
@@ -226,7 +227,12 @@ def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_st
     output_dir = Path(output_root, key)
     if output_dir.is_dir():
         if rerun_strat == 'delete':
-            shutil.rmtree(output_dir)
+            for i in range(5):
+                try:
+                    shutil.rmtree(output_dir)
+                except OSError:
+                    print('Could not delete {}, still trying to preprocess but please verify the ouput'.format(
+                        output_dir))
         if rerun_strat == 'resume':
             integrity = data_access.check_output_integrity(output_dir)
             if integrity:
@@ -235,7 +241,12 @@ def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_st
             else:
                 print('Integrity check in {} detected an error, '
                       'the folder is then erased and preprocessed again'.format(output_dir))
-                shutil.rmtree(output_dir)
+                for i in range(5):
+                    try:
+                        shutil.rmtree(output_dir)
+                    except OSError:
+                        print('Could not delete {}, still trying to preprocess but please verify the ouput'.format(
+                            output_dir))
     if not output_dir.is_dir():
         os.makedirs(output_dir)
     matlab_scripts_folder = rsc.files('mri_preprocessing.matlab')

@@ -6,6 +6,15 @@ import numpy as np
 from pydicom import datadict
 
 
+output_filename_patterns = {
+    'denoise': 'geomean_denoise_',
+    'rigid': 'resliced_co-rigid_rigid_geomean_denoise_',
+    'affine': 'resliced_co-affine_affine_geomean_denoise_',
+    'non-linear': 'non_linear_co-rigid_rigid_geomean_denoise_',
+    'def-field': 'y_co-rigid_rigid_geomean_denoise_'
+}
+
+
 def get_attr_from_metadata_dict(metadata_dict, attribute):
     tag = format(datadict.tag_for_keyword(attribute), '08x').upper()
     if tag in metadata_dict:
@@ -82,7 +91,18 @@ def check_output_integrity(output_folder):
     return True
 
 
-def create_output_average(output_root, output_path, filename_pattern, average_method='mean'):
+def average_image_list(images_list, output_path, average_method):
+    nii_list = [nib.load(path) for path in images_list]
+
+    average_image = getattr(np, average_method, None)(
+        np.stack(np.array([nii.get_fdata() for nii in nii_list]), axis=3), axis=3)
+    if average_image is None:
+        raise ValueError('{} is not an existing numpy function'.format(average_method))
+    nib.save(nib.Nifti1Image(average_image, nii_list[0].affine), output_path)
+    return output_path
+
+
+def create_output_average_old(output_root, output_path, filename_pattern, average_method='mean'):
     """
 
     Parameters
@@ -101,12 +121,57 @@ def create_output_average(output_root, output_path, filename_pattern, average_me
     if not output_root.is_dir():
         raise ValueError('{} is not an existing directory'.format(output_root))
     images_list = [ff for d in output_root.iterdir() if d.is_dir() for ff in d.glob(filename_pattern)]
-    # images_list = [f for f in output_root.iterdir(filename_pattern) if f.is_dir()]
-    nii_list = [nib.load(path) for path in images_list]
 
-    average_image = getattr(np, average_method, None)(
-        np.stack(np.array([nii.get_fdata() for nii in nii_list]), axis=3), axis=3)
-    if average_image is None:
-        raise ValueError('{} is not an existing numpy function'.format(average_method))
-    nib.save(nib.Nifti1Image(average_image, nii_list[0].affine), output_path)
-    return output_path
+    return average_image_list(images_list, output_path, average_method)
+
+
+def create_output_average(output_root, average_output_folder_path, output_type, bval, average_method='mean'):
+    output_root = Path(output_root)
+    if not output_root.is_dir():
+        raise ValueError('{} is not an existing directory'.format(output_root))
+    final_json = Path(output_root, '__final_preproc_dict.json')
+    if final_json.is_file():
+        with open(final_json, 'r') as jfile:
+            output_dict = json.load(jfile)
+    else:
+        output_dict = {}
+        for subfolder in output_root.iterdir():
+            if check_output_integrity(subfolder):
+                output_dict.update(json.load(Path(subfolder, '__preproc_dict.json')))
+    image_list = []
+    for key in output_dict:
+        if output_type in output_dict[key]:
+            if bval in output_dict[key][output_type]:
+                if Path(output_dict[key][output_type]).is_file():
+                    image_list.append(output_dict[key][output_type])
+    output_path = Path(average_output_folder_path, '_'.join([average_method, output_type, bval]) + '.nii')
+    return average_image_list(image_list, output_path, average_method)
+
+
+def generate_output_summary(output_root, output_folder=None):
+    output_root = Path(output_root)
+    if not output_root.is_dir():
+        raise ValueError('{} is not an existing directory'.format(output_root))
+    if not output_folder or not Path(output_folder).is_file():
+        output_folder = output_root
+    final_dict = json.load(open(Path(output_root, '__final_preproc_dict.json')))
+    bval_dict = {}
+    for key in final_dict:
+        for bval in final_dict[key]['denoise']:
+            if bval in bval_dict:
+                bval_dict[bval] += 1
+            else:
+                bval_dict[bval] = 1
+
+    print('######## OUTPUT SUMMARY DWI PREPROC #######')
+    print('Output root directory: {}'.format(output_root))
+    print('{} output sub-folders'.format(len(final_dict)))
+    for bval in bval_dict:
+        mean_rigid = create_output_average(output_root, output_folder, 'rigid', bval, 'mean')
+        std_rigid = create_output_average(output_root, output_folder, 'rigid', bval, 'std')
+        mean_affine = create_output_average(output_root, output_folder, 'affine', bval, 'mean')
+        std_affine = create_output_average(output_root, output_folder, 'affine', bval, 'std')
+        mean_nonlinear = create_output_average(output_root, output_folder, 'nonlinear', bval, 'mean')
+        std_nonlinear = create_output_average(output_root, output_folder, 'nonlinear', bval, 'std')
+
+        print('{} b{} images preprocessed')
