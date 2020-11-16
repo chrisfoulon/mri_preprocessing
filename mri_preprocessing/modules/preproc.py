@@ -334,7 +334,8 @@ def preproc_from_dataset_dict(json_path, output_root, rerun_strat='resume', nb_c
     if pair_singletons:
         # We duplicate the preproc output for the singletons to match with the keys of the conversion pipeline output
         for key in matched_split_dwi:
-            for matched_key in matched_split_dwi[key]:
-                output_dict[matched_key] = output_dict[key]
-            del output_dict[key]
+            if key in output_dict
+                for matched_key in matched_split_dwi[key]:
+                    output_dict[matched_key] = output_dict[key]
+                del output_dict[key]
     return output_dict
