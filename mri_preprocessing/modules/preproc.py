@@ -183,33 +183,33 @@ def dwi_preproc_dict(engine, split_dict, output_folder):
 
     non_linear_dict = {}
     def_field_dict = {}
-    if 0 in rigid_aligned_dict:
-        print('######################')
-        print('NONLINEAR REG B0 (DEFORMATION FIELD CALCULATION)')
-        print('######################')
-        def_field_dict[0] = engine.non_linear_reg(rigid_aligned_dict[0])
-        print('######################')
-        print('APPLY NON-LINEAR + RESLICE')
-        print('######################')
-        for bval in rigid_aligned_dict:
-            def_field_dict[bval] = def_field_dict[0]
-            output_img = engine.apply_transform(rigid_aligned_dict[bval], def_field_dict[0])
-            output_nonlinear = my_join(output_folder, Path(output_img).name)
-            shutil.copyfile(rigid_aligned_dict[bval], output_nonlinear)
-            non_linear_dict[bval] = output_nonlinear
-    else:
-        for bval in rigid_aligned_dict:
-            print('######################')
-            print('NONLINEAR REG')
-            print('######################')
-            def_field_dict[bval] = engine.non_linear_reg(rigid_aligned_dict[bval])
-            print('######################')
-            print('APPLY NON-LINEAR + RESLICE')
-            print('######################')
-            output_img = engine.apply_transform(rigid_aligned_dict[bval], def_field_dict[bval])
-            output_nonlinear = my_join(output_folder, Path(output_img).name)
-            shutil.copyfile(output_img, output_nonlinear)
-            non_linear_dict[bval] = output_nonlinear
+    # if 0 in rigid_aligned_dict:
+    print('######################')
+    print('NONLINEAR REG B0 (DEFORMATION FIELD CALCULATION)')
+    print('######################')
+    def_field_dict[0] = engine.non_linear_reg(rigid_aligned_dict[0])
+    print('######################')
+    print('APPLY NON-LINEAR + RESLICE')
+    print('######################')
+    for bval in rigid_aligned_dict:
+        def_field_dict[bval] = def_field_dict[0]
+        output_img = engine.apply_transform(rigid_aligned_dict[bval], def_field_dict[0])
+        output_nonlinear = my_join(output_folder, Path(output_img).name)
+        shutil.copyfile(output_img, output_nonlinear)
+        non_linear_dict[bval] = output_nonlinear
+    # else:
+    #     for bval in rigid_aligned_dict:
+    #         print('######################')
+    #         print('NONLINEAR REG')
+    #         print('######################')
+    #         def_field_dict[bval] = engine.non_linear_reg(rigid_aligned_dict[bval])
+    #         print('######################')
+    #         print('APPLY NON-LINEAR + RESLICE')
+    #         print('######################')
+    #         output_img = engine.apply_transform(rigid_aligned_dict[bval], def_field_dict[bval])
+    #         output_nonlinear = my_join(output_folder, Path(output_img).name)
+    #         shutil.copyfile(output_img, output_nonlinear)
+    #         non_linear_dict[bval] = output_nonlinear
 
     output_dict = {
         'denoise': b_denoised_dict,

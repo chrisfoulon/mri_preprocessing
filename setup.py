@@ -12,7 +12,7 @@ def read(fname):
 
 setup(
     name="mri_preprocessing",
-    version="0.1",
+    version="0.2",
     packages=find_packages(),
     scripts=[],
     zip_safe=True,
