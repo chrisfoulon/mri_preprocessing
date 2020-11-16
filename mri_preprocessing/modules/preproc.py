@@ -90,7 +90,7 @@ def preproc_folder(b0_list, b1000_list, output_folder):
     return
 
 
-def dwi_preproc_dict(engine, split_dict, output_folder, rerun_strat='resume'):
+def dwi_preproc_dict(engine, split_dict, output_folder):
     """
 
        for a split_dwi dict: (we can create the key{nii:bval} dict and just give the dict and the key to dwi_preproc_dict)
@@ -104,21 +104,6 @@ def dwi_preproc_dict(engine, split_dict, output_folder, rerun_strat='resume'):
        non_linear_align b0
        apply transform rigid_b0 and rigid_b1000
        """
-    output_folder = Path(output_folder)
-    if output_folder.is_dir():
-        if rerun_strat == 'delete':
-            shutil.rmtree(output_folder)
-        if rerun_strat == 'resume':
-            integrity = data_access.check_output_integrity(output_folder)
-            if integrity:
-                print('{} has already been preprocessed it will then be skipped'.format(output_folder))
-                return json.load(open(Path(output_folder, '__preproc_dict.json'), 'r'))
-            else:
-                print('Integrity check in {} detected an error, '
-                      'the folder is then erased and preprocessed again'.format(output_folder))
-                shutil.rmtree(output_folder)
-    if not output_folder.is_dir():
-        os.makedirs(output_folder)
 
     output_folder = str(output_folder)
     tmp_folder = str(Path(output_folder, 'tmp'))
@@ -237,14 +222,28 @@ def dwi_preproc_dict(engine, split_dict, output_folder, rerun_strat='resume'):
     return output_dict
 
 
-def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root):
+def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_strat='resume'):
+    output_dir = Path(output_root, key)
+    if output_dir.is_dir():
+        if rerun_strat == 'delete':
+            shutil.rmtree(output_dir)
+        if rerun_strat == 'resume':
+            integrity = data_access.check_output_integrity(output_dir)
+            if integrity:
+                print('{} has already been preprocessed it will then be skipped'.format(output_dir))
+                return json.load(open(Path(output_dir, '__preproc_dict.json'), 'r'))
+            else:
+                print('Integrity check in {} detected an error, '
+                      'the folder is then erased and preprocessed again'.format(output_dir))
+                shutil.rmtree(output_dir)
+    if not output_dir.is_dir():
+        os.makedirs(output_dir)
     matlab_scripts_folder = rsc.files('mri_preprocessing.matlab')
 
     engine = matlab.engine.start_matlab()
     engine.addpath(str(matlab_scripts_folder))
     engine.addpath(pp_module_path)
     engine.addpath(sr_module_path)
-    output_dir = Path(output_root, key)
     os.makedirs(output_dir, exist_ok=True)
     b_dict = dwi_preproc_dict(engine, split_dwi_dict[key], output_dir)
     if not b_dict:
@@ -252,10 +251,10 @@ def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root):
     save_dict = {key: b_dict}
     with open(Path(output_dir, '__preproc_dict.json'), 'w+') as out_file:
         json.dump(save_dict, out_file, indent=4)
-    return {key: b_dict}
+    return save_dict
 
 
-def preproc_from_dataset_dict(json_path, output_root, nb_cores=-1, pair_singletons=True):
+def preproc_from_dataset_dict(json_path, output_root, rerun_strat='resume', nb_cores=-1, pair_singletons=True):
     split_dwi_dict = data_access.get_split_dict_from_json(json_path)
     # TODO Create a cleaned dict to feed the preproc (so we don't preproc twice the same images when there's orphans)
     # TODO Create another dict listing the keys associated with grouped orphans to fill up the output dict with
@@ -307,7 +306,7 @@ def preproc_from_dataset_dict(json_path, output_root, nb_cores=-1, pair_singleto
 
     keys_list = [k for k in split_dwi_dict]
     list_of_output_dict = pool.map(
-        lambda key: partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root), keys_list)
+        lambda key: partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_strat), keys_list)
 
     pool.close()
     pool.join()
