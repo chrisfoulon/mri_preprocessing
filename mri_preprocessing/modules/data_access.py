@@ -175,5 +175,5 @@ def generate_output_summary(output_root, output_folder=None):
         std_affine = create_output_average(output_root, output_folder, 'affine', bval, 'std')
         mean_nonlinear = create_output_average(output_root, output_folder, 'nonlinear', bval, 'mean')
         std_nonlinear = create_output_average(output_root, output_folder, 'nonlinear', bval, 'std')
-        print('{} b{} images preprocessed'.format(len(bval_dict[bval]), bval))
+        print('{} b{} images preprocessed'.format(bval_dict[bval], bval))
     return output_folder
