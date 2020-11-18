@@ -144,7 +144,8 @@ def create_output_average(output_root, average_output_folder_path, output_type, 
             if bval in output_dict[key][output_type]:
                 if Path(output_dict[key][output_type][bval]).is_file():
                     image_list.append(output_dict[key][output_type][bval])
-    output_path = Path(average_output_folder_path, '_'.join([average_method, output_type, int(bval)]) + '.nii')
+    output_path = Path(
+        average_output_folder_path, '_'.join([average_method, output_type, str(int(float(bval)))]) + '.nii')
     return average_image_list(image_list, output_path, average_method)
 
 
@@ -174,5 +175,5 @@ def generate_output_summary(output_root, output_folder=None):
         std_affine = create_output_average(output_root, output_folder, 'affine', bval, 'std')
         mean_nonlinear = create_output_average(output_root, output_folder, 'nonlinear', bval, 'mean')
         std_nonlinear = create_output_average(output_root, output_folder, 'nonlinear', bval, 'std')
-        print('{} b{} images preprocessed')
+        print('{} b{} images preprocessed'.format(len(bval), bval))
     return output_folder
