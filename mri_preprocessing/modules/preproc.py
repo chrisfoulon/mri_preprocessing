@@ -218,7 +218,6 @@ def dwi_preproc_dict(engine, split_dict, output_folder):
         'nonlinear': non_linear_dict,
         'def_field': def_field_dict
     }
-    print(output_dict)
 
     return output_dict
 
