@@ -145,7 +145,7 @@ def create_output_average(output_root, average_output_folder_path, output_type, 
                 if Path(output_dict[key][output_type][bval]).is_file():
                     image_list.append(output_dict[key][output_type][bval])
     output_path = Path(
-        average_output_folder_path, '_'.join([average_method, output_type, str(int(float(bval)))]) + '.nii')
+        average_output_folder_path, '_'.join([average_method, output_type, 'b' + str(int(float(bval)))]) + '.nii')
     return average_image_list(image_list, output_path, average_method)
 
 
