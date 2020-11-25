@@ -2,6 +2,8 @@ from pathlib import Path
 import shutil
 import os
 
+import matlab.engine
+
 
 def reset_orient_mat(engine, img_path, output):
     img_path = Path(img_path)
@@ -42,3 +44,22 @@ def run_bb_spm(engine, img_path, output_folder, voxel_size):
     if not Path(output_folder).is_file():
         raise ValueError('{} does not exist'.format(output_folder))
     return engine.run_bb_spm(str(img_path), str(output_folder), voxel_size)['pth']['im'][0]
+
+
+def matlab_check_module_path(engine, module_name):
+    which = engine.which(module_name)
+    if which:
+        return str(Path(which).parent)
+    print('{} was not found in matlab path'.format(module_name))
+    path = input("You can either add the path to your startup.m (edit(fullfile(userpath,'startup.m')) in matlab or "
+                 "you can enter the path to the module here. [n no or enter to skip/ quit or exit stop the "
+                 "program]: ")
+    if path.strip() in ['quit', 'q', 'exit']:
+        print('Program stopped to fix matlab path issues')
+        exit()
+    if path.strip() not in ['', 'n', 'no']:
+        if not Path(path).is_dir():
+            raise ValueError('{} is not an existing directory'.format(path))
+    else:
+        return None
+    return str(Path(path).absolute())

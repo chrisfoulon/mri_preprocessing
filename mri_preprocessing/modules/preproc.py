@@ -17,14 +17,30 @@ from mri_preprocessing.modules import data_access, matlab_wrappers
 The first time the scripts are used, check if the matlab paths have been setup, if not, ask if you want to set them up.
 """
 
-pp_module_path = '/home/tolhsadum/neuro_apps/MATLAB/HighDimNeuro/Patient-Preprocessing/'
-sr_module_path = '/home/tolhsadum/neuro_apps/MATLAB/HighDimNeuro/spm_superres/'
+# pp_module_path = '/home/tolhsadum/neuro_apps/MATLAB/HighDimNeuro/Patient-Preprocessing/'
+# sr_module_path = '/home/tolhsadum/neuro_apps/MATLAB/HighDimNeuro/spm_superres/'
 # pp_module_path = '/home/chrisfoulon/neuro_apps/preproc_dwi/Patient-Preprocessing/'
 # sr_module_path = '/home/chrisfoulon/neuro_apps/preproc_dwi/spm_superres/'
 
+spm_path = ''
+superres_path = ''
+patient_preproc_path = ''
 
-def my_join(folder, file):
-    return str(Path(folder, file))
+
+def check_spm_modules():
+    engine = matlab.engine.start_matlab()
+    which = matlab_wrappers.matlab_check_module_path(engine, 'spm')
+    if which:
+        global spm_path
+        spm_path = which
+    which = matlab_wrappers.matlab_check_module_path(engine, 'spm_superres')
+    if which:
+        global superres_path
+        superres_path = which
+    which = matlab_wrappers.matlab_check_module_path(engine, 'RunPreproc')
+    if which:
+        global patient_preproc_path
+        patient_preproc_path = which
 
 
 def format_filename(filename, bval):
@@ -194,7 +210,7 @@ def dwi_preproc_dict(engine, split_dict, output_folder):
     for bval in rigid_aligned_dict:
         def_field_dict[bval] = def_field_dict[0]
         output_img = engine.apply_transform(rigid_aligned_dict[bval], def_field_dict[0])
-        output_nonlinear = my_join(output_folder, Path(output_img).name)
+        output_nonlinear = str(Path(output_folder, Path(output_img).name))
         shutil.copyfile(output_img, output_nonlinear)
         non_linear_dict[bval] = output_nonlinear
     # else:
@@ -254,8 +270,10 @@ def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_st
 
     engine = matlab.engine.start_matlab()
     engine.addpath(str(matlab_scripts_folder))
-    engine.addpath(pp_module_path)
-    engine.addpath(sr_module_path)
+    # Just in case we add all of them
+    engine.addpath(spm_path)
+    engine.addpath(superres_path)
+    engine.addpath(patient_preproc_path)
     os.makedirs(output_dir, exist_ok=True)
     b_dict = dwi_preproc_dict(engine, split_dwi_dict[key], output_dir)
     if not b_dict:
@@ -271,7 +289,13 @@ def preproc_from_dataset_dict(json_path, output_root, rerun_strat='resume', nb_c
     # TODO Create a cleaned dict to feed the preproc (so we don't preproc twice the same images when there's orphans)
     # TODO Create another dict listing the keys associated with grouped orphans to fill up the output dict with
     # both keys having the same preproc output
-
+    check_spm_modules()
+    if not all([spm_path, superres_path, patient_preproc_path]):
+        print('Missing matlab modules (spm, spm_superres and Patient-Preprocessing (RunPreproc) are required)'
+              '\n https://www.fil.ion.ucl.ac.uk/spm/'
+              '\n https://github.com/brudfors/spm_superres'
+              '\n https://github.com/WTCN-computational-anatomy-group/Patient-Preprocessing')
+        exit()
     if pair_singletons:
         json_path = Path(json_path)
         if not json_path.is_file():
