@@ -177,3 +177,21 @@ def generate_output_summary(output_root, output_folder=None):
         std_nonlinear = create_output_average(output_root, output_folder, 'nonlinear', bval, 'std')
         print('{} b{} images preprocessed'.format(bval_dict[bval], bval))
     return output_folder
+
+
+def change_root(source_root, dest_root):
+    dest_root = Path(dest_root)
+    source_root = Path(source_root)
+    if not dest_root.is_dir():
+        raise ValueError('{} is not an existing directory'.format(dest_root))
+    for subfolder in [d for d in dest_root.iterdir() if d.is_dir()]:
+        json_path = Path(subfolder, '__preproc_dict.json')
+        if json_path.is_file():
+            json_dict = json.load(open(json_path, 'r'))
+            for key in json_dict:
+                for step in json_dict[key]:
+                    for bval in json_dict[key][step]:
+                        json_dict[key][step][bval] = json_dict[key][step][bval].replace(
+                            str(source_root), str(dest_root))
+            with open(json_path, 'w+') as out_file:
+                json.dump(json_dict, out_file, indent=4)
