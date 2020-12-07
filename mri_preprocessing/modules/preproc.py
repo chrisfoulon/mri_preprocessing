@@ -239,24 +239,10 @@ def dwi_preproc_dict(engine, split_dict, output_folder):
 
 
 def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_strat='resume'):
-    output_dir = Path(output_root, key)
-    if output_dir.is_dir():
-        if rerun_strat == 'delete':
-            for i in range(5):
-                try:
-                    shutil.rmtree(output_dir)
-                except OSError:
-                    print('Could not delete {}, still trying to preprocess but please verify the ouput'.format(
-                        output_dir))
-                    time.sleep(5)
-        if rerun_strat == 'resume':
-            integrity = data_access.check_output_integrity(output_dir)
-            if integrity:
-                print('{} has already been preprocessed it will then be skipped'.format(output_dir))
-                return json.load(open(Path(output_dir, '__preproc_dict.json'), 'r'))
-            else:
-                print('Integrity check in {} detected an error, '
-                      'the folder is then erased and preprocessed again'.format(output_dir))
+    try:
+        output_dir = Path(output_root, key)
+        if output_dir.is_dir():
+            if rerun_strat == 'delete':
                 for i in range(5):
                     try:
                         shutil.rmtree(output_dir)
@@ -264,30 +250,50 @@ def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_st
                         print('Could not delete {}, still trying to preprocess but please verify the ouput'.format(
                             output_dir))
                         time.sleep(5)
-    if not output_dir.is_dir():
-        os.makedirs(output_dir)
-    matlab_scripts_folder = rsc.files('mri_preprocessing.matlab')
+            if rerun_strat == 'resume':
+                integrity = data_access.check_output_integrity(output_dir)
+                if integrity:
+                    print('{} has already been preprocessed it will then be skipped'.format(output_dir))
+                    return json.load(open(Path(output_dir, '__preproc_dict.json'), 'r'))
+                else:
+                    print('Integrity check in {} detected an error, '
+                          'the folder is then erased and preprocessed again'.format(output_dir))
+                    for i in range(5):
+                        try:
+                            shutil.rmtree(output_dir)
+                        except OSError:
+                            print('Could not delete {}, still trying to preprocess but please verify the ouput'.format(
+                                output_dir))
+                            time.sleep(5)
+        if not output_dir.is_dir():
+            os.makedirs(output_dir)
+        matlab_scripts_folder = rsc.files('mri_preprocessing.matlab')
 
-    engine = matlab.engine.start_matlab()
-    engine.addpath(str(matlab_scripts_folder))
-    # Just in case we add all of them
-    engine.addpath(spm_path)
-    engine.addpath(superres_path)
-    engine.addpath(patient_preproc_path)
-    os.makedirs(output_dir, exist_ok=True)
-    b_dict = dwi_preproc_dict(engine, split_dwi_dict[key], output_dir)
-    if not b_dict:
+        engine = matlab.engine.start_matlab()
+        engine.addpath(str(matlab_scripts_folder))
+        # Just in case we add all of them
+        engine.addpath(spm_path)
+        engine.addpath(superres_path)
+        engine.addpath(patient_preproc_path)
+        os.makedirs(output_dir, exist_ok=True)
+        b_dict = dwi_preproc_dict(engine, split_dwi_dict[key], output_dir)
+        if not b_dict:
+            return {}
+        save_dict = {key: b_dict}
+        with open(Path(output_dir, '__preproc_dict.json'), 'w+') as out_file:
+            json.dump(save_dict, out_file, indent=4)
+        return save_dict
+    except Exception as e:
+        error_dir = Path(output_root, 'errors')
+        if not error_dir.is_dir():
+            error_dir.mkdir()
+        output_error_path = Path(error_dir, key + '_error.txt')
+        output_error_path.write_text('ERROR WITH KEY [{}]:\n{}'.format(key, e))
         return {}
-    save_dict = {key: b_dict}
-    with open(Path(output_dir, '__preproc_dict.json'), 'w+') as out_file:
-        json.dump(save_dict, out_file, indent=4)
-    return save_dict
 
 
 def preproc_from_dataset_dict(json_path, output_root, rerun_strat='resume', nb_cores=-1, pair_singletons=True):
     split_dwi_dict = data_access.get_split_dict_from_json(json_path)
-    # TODO Create a cleaned dict to feed the preproc (so we don't preproc twice the same images when there's orphans)
-    # TODO Create another dict listing the keys associated with grouped orphans to fill up the output dict with
     # both keys having the same preproc output
     check_spm_modules()
     if not all([spm_path, superres_path, patient_preproc_path]):
