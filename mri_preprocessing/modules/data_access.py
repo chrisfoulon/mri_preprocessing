@@ -160,22 +160,28 @@ def generate_output_summary(output_root, output_folder=None):
     return output_folder
 
 
+def change_root_json_file(json_path, source_root, dest_root):
+    json_path = Path(json_path)
+    if json_path.is_file():
+        json_dict = json.load(open(json_path, 'r'))
+        for key in json_dict:
+            for step in json_dict[key]:
+                for bval in json_dict[key][step]:
+                    json_dict[key][step][bval] = json_dict[key][step][bval].replace(
+                        str(source_root), str(dest_root))
+        with open(json_path, 'w+') as out_file:
+            json.dump(json_dict, out_file, indent=4)
+
+
 def change_root(source_root, dest_root):
     dest_root = Path(dest_root)
     source_root = Path(source_root)
     if not dest_root.is_dir():
         raise ValueError('{} is not an existing directory'.format(dest_root))
-    for subfolder in [d for d in dest_root.iterdir() if d.is_dir()]:
-        json_path = Path(subfolder, '__preproc_dict.json')
-        if json_path.is_file():
-            json_dict = json.load(open(json_path, 'r'))
-            for key in json_dict:
-                for step in json_dict[key]:
-                    for bval in json_dict[key][step]:
-                        json_dict[key][step][bval] = json_dict[key][step][bval].replace(
-                            str(source_root), str(dest_root))
-            with open(json_path, 'w+') as out_file:
-                json.dump(json_dict, out_file, indent=4)
+    json_path_list = [Path(d, '__preproc_dict.json') for d in dest_root.iterdir() if d.is_dir()]
+    json_path_list.append(Path(dest_root, '__final_preproc_dict.json'))
+    for json_path in json_path_list:
+        change_root_json_file(json_path, source_root, dest_root)
 
 
 def filter_out_non_head(final_preproc_dict_path, final_image_dict_path, output_folder=None):
