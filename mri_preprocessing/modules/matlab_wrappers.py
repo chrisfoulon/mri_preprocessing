@@ -1,6 +1,8 @@
 from pathlib import Path
 import shutil
 import os
+import json
+import importlib_resources as rsc
 
 import matlab.engine
 
@@ -63,3 +65,20 @@ def matlab_check_module_path(engine, module_name):
     else:
         return None
     return str(Path(path).absolute())
+
+
+def images_avg(preproc_output_root, method, output_pref, output_folder=None):
+    if not Path(preproc_output_root).is_dir():
+        raise ValueError('{} does not exist'.format(preproc_output_root))
+    if not Path(output_folder).is_dir():
+        raise ValueError('{} does not exist'.format(output_folder))
+    final_dict = json.load(open(Path(preproc_output_root, '__final_preproc_dict.json')))
+    img_list = []
+    for key in final_dict:
+        img_list.append(final_dict[key]['rigid']['0.0'])
+
+    engine = matlab.engine.start_matlab()
+    matlab_scripts_folder = rsc.files('mri_preprocessing.matlab')
+    engine.addpath(str(matlab_scripts_folder))
+    output_path = engine.images_avg(img_list, method, output_folder, output_pref)
+    return output_path
