@@ -67,18 +67,28 @@ def matlab_check_module_path(engine, module_name):
     return str(Path(path).absolute())
 
 
-def images_avg(preproc_output_root, method, output_pref, output_folder=None):
+def images_avg(preproc_output_root, reg_type, method, output_pref, output_folder=None):
     if not Path(preproc_output_root).is_dir():
         raise ValueError('{} does not exist'.format(preproc_output_root))
     if not Path(output_folder).is_dir():
         raise ValueError('{} does not exist'.format(output_folder))
     final_dict = json.load(open(Path(preproc_output_root, '__final_preproc_dict.json')))
-    img_list = []
+    bval_dict = {}
     for key in final_dict:
-        img_list.append(final_dict[key]['rigid']['0.0'])
+        for bval in final_dict[key]['denoise']:
+            if bval in bval_dict:
+                bval_dict[bval] += 1
+            else:
+                bval_dict[bval] = 1
+    out_dict = {}
+    for bval in bval_dict:
+        img_list = []
+        for key in final_dict:
+            img_list.append(final_dict[key][reg_type][bval])
 
-    engine = matlab.engine.start_matlab()
-    matlab_scripts_folder = rsc.files('mri_preprocessing.matlab')
-    engine.addpath(str(matlab_scripts_folder))
-    output_path = engine.images_avg(img_list, method, output_folder, output_pref)
-    return output_path
+        engine = matlab.engine.start_matlab()
+        matlab_scripts_folder = rsc.files('mri_preprocessing.matlab')
+        engine.addpath(str(matlab_scripts_folder))
+        output_path = engine.images_avg(img_list, method, output_folder, output_pref)
+        out_dict[bval] = output_path
+    return out_dict
