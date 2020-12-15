@@ -5,6 +5,7 @@ import shutil
 import nibabel as nib
 import numpy as np
 from pydicom import datadict
+from mri_preprocessing.modules import matlab_wrappers
 
 
 output_filename_patterns = {
@@ -130,7 +131,7 @@ def create_output_average(output_root, average_output_folder_path, output_type, 
     return average_image_list(image_list, output_path, average_method)
 
 
-def generate_output_summary(output_root, output_folder=None):
+def generate_output_summary_old(output_root, output_folder=None):
     output_root = Path(output_root)
     if not output_root.is_dir():
         raise ValueError('{} is not an existing directory'.format(output_root))
@@ -157,6 +158,21 @@ def generate_output_summary(output_root, output_folder=None):
         mean_nonlinear = create_output_average(output_root, output_folder, 'nonlinear', bval, 'mean')
         std_nonlinear = create_output_average(output_root, output_folder, 'nonlinear', bval, 'std')
         print('{} b{} images preprocessed'.format(bval_dict[bval], bval))
+    return output_folder
+
+
+def generate_output_summary(output_root, output_folder=None):
+    output_root = Path(output_root)
+    if not output_root.is_dir():
+        raise ValueError('{} is not an existing directory'.format(output_root))
+    if not output_folder or not Path(output_folder).is_file():
+        output_folder = output_root
+    matlab_wrappers.images_avg(output_root, 'rigid', 'mean', 'rigid_mean', output_folder)
+    matlab_wrappers.images_avg(output_root, 'rigid', 'std', 'rigid_std', output_folder)
+    matlab_wrappers.images_avg(output_root, 'affine', 'mean', 'affine_mean', output_folder)
+    matlab_wrappers.images_avg(output_root, 'affine', 'std', 'affine_std', output_folder)
+    matlab_wrappers.images_avg(output_root, 'nonlinear', 'mean', 'nonlinear_mean', output_folder)
+    matlab_wrappers.images_avg(output_root, 'nonlinear', 'std', 'non_linear_mean', output_folder)
     return output_folder
 
 

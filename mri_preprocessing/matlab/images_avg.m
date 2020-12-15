@@ -2,10 +2,6 @@ function [output_img] = images_avg(img_list, method, output_dir, out_pref)
     %IMAGES_STD Calculate the standard deviation of images in the same
     % space
     img_list = transpose(img_list);
-    
-    disp(class(img_list));
-    disp(img_list);
-    disp(size(img_list));
     spm('defaults', 'FMRI');
     spm_jobman('initcfg');
     matlabbatch{1}.spm.util.imcalc.input = img_list;

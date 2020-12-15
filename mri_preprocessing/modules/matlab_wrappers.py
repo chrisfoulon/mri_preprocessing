@@ -4,7 +4,9 @@ import os
 import json
 import importlib_resources as rsc
 
+import numpy as np
 import matlab.engine
+import nibabel as nib
 
 
 def reset_orient_mat(engine, img_path, output):
@@ -67,7 +69,7 @@ def matlab_check_module_path(engine, module_name):
     return str(Path(path).absolute())
 
 
-def images_avg(preproc_output_root, reg_type, method, output_pref, output_folder=None):
+def images_avg(preproc_output_root, reg_type, method, output_pref, output_folder):
     if not Path(preproc_output_root).is_dir():
         raise ValueError('{} does not exist'.format(preproc_output_root))
     if not Path(output_folder).is_dir():
@@ -84,11 +86,23 @@ def images_avg(preproc_output_root, reg_type, method, output_pref, output_folder
     for bval in bval_dict:
         img_list = []
         for key in final_dict:
-            img_list.append(final_dict[key][reg_type][bval])
-
-        engine = matlab.engine.start_matlab()
-        matlab_scripts_folder = rsc.files('mri_preprocessing.matlab')
-        engine.addpath(str(matlab_scripts_folder))
-        output_path = engine.images_avg(img_list, method, output_folder, output_pref)
+            if bval in final_dict[key][reg_type]:
+                img_list.append(final_dict[key][reg_type][bval])
+        if len(img_list) == 1:
+            print('Only one image found with b-value {} in the dataset'.format(bval))
+            output_path = str(Path(output_folder, output_pref + '_{}.nii'.format(int(float(bval)))))
+            if method.lower() == 'mean':
+                print('Copying the image as the mean image')
+                shutil.copyfile(img_list[0], output_path)
+            if method.lower() == 'std':
+                print('The standard deviation is then 0. Creating an image full of zeros')
+                nii = nib.load(img_list[0])
+                nib.save(nib.Nifti1Image(np.zeros(nii.shape), nii.affine), output_path)
+        else:
+            engine = matlab.engine.start_matlab()
+            matlab_scripts_folder = rsc.files('mri_preprocessing.matlab')
+            engine.addpath(str(matlab_scripts_folder))
+            output_path = engine.images_avg(img_list, method.lower(), str(output_folder),
+                                            output_pref + '_{}'.format(int(float(bval))))
         out_dict[bval] = output_path
     return out_dict
