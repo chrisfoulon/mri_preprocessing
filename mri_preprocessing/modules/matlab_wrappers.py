@@ -103,6 +103,6 @@ def images_avg(preproc_output_root, reg_type, method, output_pref, output_folder
             matlab_scripts_folder = rsc.files('mri_preprocessing.matlab')
             engine.addpath(str(matlab_scripts_folder))
             output_path = engine.images_avg(img_list, method.lower(), str(output_folder),
-                                            output_pref + '_{}'.format(int(float(bval))))
+                                            output_pref + '_b{}'.format(int(float(bval))))
         out_dict[bval] = output_path
     return out_dict

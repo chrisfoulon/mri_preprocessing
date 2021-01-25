@@ -13,15 +13,6 @@ from scipy.stats import gmean
 import numpy as np
 from mri_preprocessing.modules import data_access, matlab_wrappers
 
-""" Matlab modules management: store the path to the local matlab modules somewhere in the package install. 
-The first time the scripts are used, check if the matlab paths have been setup, if not, ask if you want to set them up.
-"""
-
-# pp_module_path = '/home/tolhsadum/neuro_apps/MATLAB/HighDimNeuro/Patient-Preprocessing/'
-# sr_module_path = '/home/tolhsadum/neuro_apps/MATLAB/HighDimNeuro/spm_superres/'
-# pp_module_path = '/home/chrisfoulon/neuro_apps/preproc_dwi/Patient-Preprocessing/'
-# sr_module_path = '/home/chrisfoulon/neuro_apps/preproc_dwi/spm_superres/'
-
 spm_path = ''
 superres_path = ''
 patient_preproc_path = ''
@@ -107,10 +98,11 @@ def preproc_folder(b0_list, b1000_list, output_folder):
     return
 
 
-def dwi_preproc_dict(engine, split_dict, output_folder):
+def dwi_preproc_dict(engine, split_dict, output_folder, output_vox_size=2):
     """
 
-       for a split_dwi dict: (we can create the key{nii:bval} dict and just give the dict and the key to dwi_preproc_dict)
+       for a split_dwi dict: (we can create the key{nii:bval} dict and just give the dict
+       and the key to dwi_preproc_dict)
        reset and denoise ALL images
        gmean b0s and b1000s (from the denoise output)
        rigid align b0s / affine
@@ -157,14 +149,6 @@ def dwi_preproc_dict(engine, split_dict, output_folder):
         # now b_dict contains the denoised images (maybe not used later)
         b_dict[b] = b_list
 
-    # b0_align_dict = {'rigid': [], 'affine': []}
-    # if 0 in b_denoised_dict:
-    #     b0_align_dict = {'rigid': [], 'affine': []}
-    #     for b0 in b_denoised_dict[0]:
-    #         out_align = engine.my_align(b0, tmp_folder)
-    #         b0_align_dict['rigid'].append(out_align['rigid'])
-    #         b0_align_dict['affine'].append(out_align['affine'])
-
     print('######################')
     print('RIGID AND AFFINE ALIGNMENT OF THE GEOMEAN IMAGES')
     print('######################')
@@ -193,9 +177,9 @@ def dwi_preproc_dict(engine, split_dict, output_folder):
     resliced_affine_dict = {}
     for bval in rigid_aligned_dict:
         resliced_rigid_dict[bval] = engine.run_bb_spm(
-            rigid_aligned_dict[bval], output_folder, 2, 'resliced_')['pth']['im'][0]
+            rigid_aligned_dict[bval], output_folder, output_vox_size, 'resliced_')['pth']['im'][0]
         resliced_affine_dict[bval] = engine.run_bb_spm(
-            affine_aligned_dict[bval], output_folder, 2, 'resliced_')['pth']['im'][0]
+            affine_aligned_dict[bval], output_folder, output_vox_size, 'resliced_')['pth']['im'][0]
 
     non_linear_dict = {}
     def_field_dict = {}
@@ -209,23 +193,10 @@ def dwi_preproc_dict(engine, split_dict, output_folder):
     print('######################')
     for bval in rigid_aligned_dict:
         def_field_dict[bval] = def_field_dict[0]
-        output_img = engine.apply_transform(rigid_aligned_dict[bval], def_field_dict[0])
+        output_img = engine.apply_transform(rigid_aligned_dict[bval], def_field_dict[0], output_vox_size)
         output_nonlinear = str(Path(output_folder, Path(output_img).name))
         shutil.copyfile(output_img, output_nonlinear)
         non_linear_dict[bval] = output_nonlinear
-    # else:
-    #     for bval in rigid_aligned_dict:
-    #         print('######################')
-    #         print('NONLINEAR REG')
-    #         print('######################')
-    #         def_field_dict[bval] = engine.non_linear_reg(rigid_aligned_dict[bval])
-    #         print('######################')
-    #         print('APPLY NON-LINEAR + RESLICE')
-    #         print('######################')
-    #         output_img = engine.apply_transform(rigid_aligned_dict[bval], def_field_dict[bval])
-    #         output_nonlinear = my_join(output_folder, Path(output_img).name)
-    #         shutil.copyfile(output_img, output_nonlinear)
-    #         non_linear_dict[bval] = output_nonlinear
 
     output_dict = {
         'denoise': b_denoised_dict,
@@ -238,7 +209,7 @@ def dwi_preproc_dict(engine, split_dict, output_folder):
     return output_dict
 
 
-def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_strat='resume'):
+def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_strat='resume', output_vox_size=2):
     try:
         output_dir = Path(output_root, key)
         if output_dir.is_dir():
@@ -276,7 +247,7 @@ def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_st
         engine.addpath(superres_path)
         engine.addpath(patient_preproc_path)
         os.makedirs(output_dir, exist_ok=True)
-        b_dict = dwi_preproc_dict(engine, split_dwi_dict[key], output_dir)
+        b_dict = dwi_preproc_dict(engine, split_dwi_dict[key], output_dir, output_vox_size)
         if not b_dict:
             return {}
         save_dict = {key: b_dict}
@@ -292,7 +263,8 @@ def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_st
         return {}
 
 
-def preproc_from_dataset_dict(json_path, output_root, rerun_strat='resume', nb_cores=-1, pair_singletons=True):
+def preproc_from_dataset_dict(json_path, output_root, rerun_strat='resume', nb_cores=-1, output_vox_size=2,
+                              pair_singletons=True):
     split_dwi_dict = data_access.get_split_dict_from_json(json_path)
     # both keys having the same preproc output
     check_spm_modules()
@@ -348,7 +320,8 @@ def preproc_from_dataset_dict(json_path, output_root, rerun_strat='resume', nb_c
 
     keys_list = [k for k in split_dwi_dict]
     list_of_output_dict = pool.map(
-        lambda key: partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_strat), keys_list)
+        lambda key: partial_preproc_from_dataset_dict(
+            split_dwi_dict, key, output_root, rerun_strat, output_vox_size), keys_list)
 
     pool.close()
     pool.join()
