@@ -218,7 +218,7 @@ def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_st
                     try:
                         shutil.rmtree(output_dir)
                     except OSError:
-                        print('Could not delete {}, still trying to preprocess but please verify the ouput'.format(
+                        print('Could not delete {}, still trying to preprocess but please verify the output'.format(
                             output_dir))
                         time.sleep(5)
             if rerun_strat == 'resume':
@@ -233,7 +233,7 @@ def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_st
                         try:
                             shutil.rmtree(output_dir)
                         except OSError:
-                            print('Could not delete {}, still trying to preprocess but please verify the ouput'.format(
+                            print('Could not delete {}, still trying to preprocess but please verify the output'.format(
                                 output_dir))
                             time.sleep(5)
         if not output_dir.is_dir():

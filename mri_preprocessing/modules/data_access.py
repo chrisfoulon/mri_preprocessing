@@ -223,3 +223,68 @@ def filter_out_non_head(final_preproc_dict_path, final_image_dict_path, output_f
                 temp_dir_parent_dir = temp_dir_path.parent
                 temp_dir_name = temp_dir_parent_dir.name
                 shutil.move(temp_dir_parent_dir, Path(non_head_dir, temp_dir_name))
+d = {
+    "DTI_65_17iso_TE85_TR14_ip3_20180403160959_6__pref__": {
+        "warning": [
+            "Warning: Slice timing appears corrupted (range 0..17452.5, TR=690 ms)"
+        ],
+        "output_dir": "/home/tolhsadum/neuro_apps/data/copy_conv/S06_DTI_65_17iso_TE85_TR14_ip3",
+        "bvec": "/home/tolhsadum/neuro_apps/data/copy_conv/S06_DTI_65_17iso_TE85_TR14_ip3/DTI_65_17iso_TE85_TR14_ip3_20180403160959_6__pref__.bvec",
+        "bval": "/home/tolhsadum/neuro_apps/data/copy_conv/S06_DTI_65_17iso_TE85_TR14_ip3/DTI_65_17iso_TE85_TR14_ip3_20180403160959_6__pref__.bval",
+        "json": "/home/tolhsadum/neuro_apps/data/copy_conv/S06_DTI_65_17iso_TE85_TR14_ip3/DTI_65_17iso_TE85_TR14_ip3_20180403160959_6__pref__.json",
+        "output_path": "/home/tolhsadum/neuro_apps/data/copy_conv/S06_DTI_65_17iso_TE85_TR14_ip3/DTI_65_17iso_TE85_TR14_ip3_20180403160959_6__pref__.nii",
+        "input_folder": "/home/tolhsadum/neuro_apps/data/2018_04_03_ANALOG_44T_MRI_2018/S06_DTI_65_17iso_TE85_TR14_ip3",
+        "metadata": "/home/tolhsadum/neuro_apps/data/copy_conv/S06_DTI_65_17iso_TE85_TR14_ip3/DTI_65_17iso_TE85_TR14_ip3_20180403160959_6__pref___dicom_metadata.json",
+        "non_head": "False",
+        "split_dwi": {
+            "/home/tolhsadum/neuro_apps/data/copy_conv/S06_DTI_65_17iso_TE85_TR14_ip3/split_dwi/DTI_65_17iso_TE85_TR14_ip3_20180403160959_6__pref___bval0_vol0.nii": 0.0,
+            "/home/tolhsadum/neuro_apps/data/copy_conv/S06_DTI_65_17iso_TE85_TR14_ip3/split_dwi/DTI_65_17iso_TE85_TR14_ip3_20180403160959_6__pref___bval1485_vol1.nii": 1485.0,
+        }
+    }
+}
+
+
+def create_pseudo_input_dict(root_directory, add_non_head_tag=True):
+    """
+
+    Parameters
+    ----------
+    root_directory: pathlike
+    add_non_head_tag: bool
+        If True, adds a non_head tag to all entries set to False (meaning it's considered a head)
+
+    Returns
+    -------
+
+    """
+    if not Path(root_directory).is_dir():
+        raise ValueError('{} is not an existing directory'.format(root_directory))
+    output_dict_path = Path(root_directory, '__pseudo_final_dict.json')
+    final_dict = {}
+    for directory in [d for d in Path(root_directory).rglob('*') if d.is_dir()]:
+        nii_list = [nii for nii in directory.iterdir() if nii.is_file() and (
+                nii.name.endswith('nii') or nii.name.endswith('nii.gz'))]
+        if len(nii_list) > 2:
+            raise ValueError('{} contains more than 2 nifti images'.format(directory))
+        b0 = None
+        b1000 = None
+        for nii in nii_list:
+            if 'b0' in nii.name and 'b1000' not in nii.name:
+                b0 = str(nii)
+            if 'b1000' in nii.name and 'b0' not in nii.name:
+                b1000 = str(nii)
+        if b0 is None or b1000 is None:
+            raise ValueError('Cannot find out which file is a b0 and which is the b1000 in {}'.format(directory))
+        # If we are here we should have a b0 and a b1000 so we can create the dictionary entry
+        final_dict[directory.name] = {
+            "output_dir": str(directory),
+            "output_path": b0,
+            "non_head": "False",
+            "split_dwi": {
+                b0: 0.0,
+                b1000: 1000.0,
+            }
+        }
+    with open(output_dict_path, 'w+') as out_file:
+        json.dump(final_dict, out_file, indent=4)
+    return output_dict_path

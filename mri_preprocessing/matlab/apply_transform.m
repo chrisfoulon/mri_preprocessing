@@ -26,10 +26,10 @@ function [output_img] = apply_transform(input_path, def_field, voxel_size, pref)
     };
 %     matlabbatch{1}.spm.spatial.normalise.write.woptions.bb = [-88.5000 -125.5000 -71.5000
 %         89.5000  88.5000 106.5000];
-%     matlabbatch{1}.spm.spatial.normalise.write.woptions.bb = [-90 -126 -72
-%         90 90 108];
     matlabbatch{1}.spm.spatial.normalise.write.woptions.bb = [-90 -126 -72
-        nan nan nan];
+        90 90 108];
+%     matlabbatch{1}.spm.spatial.normalise.write.woptions.bb = [nan  nan  nan
+%         nan    nan   nan];
     matlabbatch{1}.spm.spatial.normalise.write.woptions.vox = vox;
     matlabbatch{1}.spm.spatial.normalise.write.woptions.interp = 4;
     if ~strcmp(pref, '')
