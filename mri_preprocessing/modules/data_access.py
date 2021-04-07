@@ -223,25 +223,6 @@ def filter_out_non_head(final_preproc_dict_path, final_image_dict_path, output_f
                 temp_dir_parent_dir = temp_dir_path.parent
                 temp_dir_name = temp_dir_parent_dir.name
                 shutil.move(temp_dir_parent_dir, Path(non_head_dir, temp_dir_name))
-d = {
-    "DTI_65_17iso_TE85_TR14_ip3_20180403160959_6__pref__": {
-        "warning": [
-            "Warning: Slice timing appears corrupted (range 0..17452.5, TR=690 ms)"
-        ],
-        "output_dir": "/home/tolhsadum/neuro_apps/data/copy_conv/S06_DTI_65_17iso_TE85_TR14_ip3",
-        "bvec": "/home/tolhsadum/neuro_apps/data/copy_conv/S06_DTI_65_17iso_TE85_TR14_ip3/DTI_65_17iso_TE85_TR14_ip3_20180403160959_6__pref__.bvec",
-        "bval": "/home/tolhsadum/neuro_apps/data/copy_conv/S06_DTI_65_17iso_TE85_TR14_ip3/DTI_65_17iso_TE85_TR14_ip3_20180403160959_6__pref__.bval",
-        "json": "/home/tolhsadum/neuro_apps/data/copy_conv/S06_DTI_65_17iso_TE85_TR14_ip3/DTI_65_17iso_TE85_TR14_ip3_20180403160959_6__pref__.json",
-        "output_path": "/home/tolhsadum/neuro_apps/data/copy_conv/S06_DTI_65_17iso_TE85_TR14_ip3/DTI_65_17iso_TE85_TR14_ip3_20180403160959_6__pref__.nii",
-        "input_folder": "/home/tolhsadum/neuro_apps/data/2018_04_03_ANALOG_44T_MRI_2018/S06_DTI_65_17iso_TE85_TR14_ip3",
-        "metadata": "/home/tolhsadum/neuro_apps/data/copy_conv/S06_DTI_65_17iso_TE85_TR14_ip3/DTI_65_17iso_TE85_TR14_ip3_20180403160959_6__pref___dicom_metadata.json",
-        "non_head": "False",
-        "split_dwi": {
-            "/home/tolhsadum/neuro_apps/data/copy_conv/S06_DTI_65_17iso_TE85_TR14_ip3/split_dwi/DTI_65_17iso_TE85_TR14_ip3_20180403160959_6__pref___bval0_vol0.nii": 0.0,
-            "/home/tolhsadum/neuro_apps/data/copy_conv/S06_DTI_65_17iso_TE85_TR14_ip3/split_dwi/DTI_65_17iso_TE85_TR14_ip3_20180403160959_6__pref___bval1485_vol1.nii": 1485.0,
-        }
-    }
-}
 
 
 def create_pseudo_input_dict(root_directory, add_non_head_tag=True):

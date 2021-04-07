@@ -22,7 +22,8 @@ setup(
                       "nibabel",
                       "numpy",
                       "scipy",
-                      "pydicom"],
+                      "pydicom",
+                      "bcblib>=0.2.7"],
 
     package_data={
         # If any package contains *.txt or *.rst files, include them:
