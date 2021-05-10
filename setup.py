@@ -23,6 +23,7 @@ setup(
                       "numpy",
                       "scipy",
                       "pydicom",
+                      "tqdm",
                       "bcblib>=0.2.9"],
 
     package_data={

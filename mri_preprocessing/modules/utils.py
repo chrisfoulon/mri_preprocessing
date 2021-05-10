@@ -1,6 +1,8 @@
 from pathlib import Path
 import json
 
+from tqdm import tqdm
+
 
 def generate_final_preproc_dict(output_dir, final_dict_path=''):
     final_preproc_dict = {}
@@ -8,7 +10,7 @@ def generate_final_preproc_dict(output_dir, final_dict_path=''):
         final_preproc_dict_path = Path(output_dir, '__final_preproc_dict.json')
     else:
         final_preproc_dict_path = final_dict_path
-    for d in Path(output_dir).iterdir():
+    for d in tqdm(Path(output_dir).iterdir()):
         preproc_json = Path(d, '__preproc_dict.json')
         if preproc_json.is_file():
             final_preproc_dict.update(json.load(open(preproc_json, 'r')))
