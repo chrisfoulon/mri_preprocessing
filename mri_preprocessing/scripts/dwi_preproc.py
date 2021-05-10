@@ -3,7 +3,7 @@ import importlib_resources as rsc
 import argparse
 import json
 
-from mri_preprocessing.modules import preproc, data_access
+from mri_preprocessing.modules import preproc, data_access, utils
 
 
 def my_join(folder, file):
@@ -49,8 +49,8 @@ def main():
     output_preproc_dict = preproc.preproc_from_dataset_dict(json_dict, output_root,
                                                             rerun_strat='resume', output_vox_size=args.voxel_size,
                                                             pair_singletons=pair_singletons)
-    output_json_file_path = Path(output_root, '__final_preproc_dict.json')
-    with open(output_json_file_path, 'w+') as out_file:
-        json.dump(output_preproc_dict, out_file, indent=4)
-
+    utils.generate_final_preproc_dict(output_root)
+    # output_json_file_path = Path(output_root, '__final_preproc_dict.json')
+    # with open(output_json_file_path, 'w+') as out_file:
+    #     json.dump(output_preproc_dict, out_file, indent=4)
     return

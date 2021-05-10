@@ -23,7 +23,7 @@ setup(
                       "numpy",
                       "scipy",
                       "pydicom",
-                      "bcblib>=0.2.7"],
+                      "bcblib>=0.2.9"],
 
     package_data={
         # If any package contains *.txt or *.rst files, include them:
