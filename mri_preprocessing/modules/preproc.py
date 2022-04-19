@@ -144,8 +144,8 @@ def dwi_preproc_dict(engine, split_dict, output_folder, output_vox_size=2):
                 b_list.append(output_denoise)
             else:
                 b_list.append(str(out_denoise_test))
-        b_denoised_dict[b] = nii_gmean(b_list, Path(output_folder, 'geomean_' +
-                                                    format_filename(Path(b_list[0]).name, int(round(b)))))
+        b_denoised_dict[b] = nii_gmean(b_list, str(Path(output_folder, 'geomean_' +
+                                                        format_filename(Path(b_list[0]).name, int(round(b))))))
         # now b_dict contains the denoised images (maybe not used later)
         b_dict[b] = b_list
 
@@ -183,16 +183,20 @@ def dwi_preproc_dict(engine, split_dict, output_folder, output_vox_size=2):
 
     non_linear_dict = {}
     def_field_dict = {}
+    inv_def_field_dict = {}
     # if 0 in rigid_aligned_dict:
     print('######################')
     print('NONLINEAR REG B0 (DEFORMATION FIELD CALCULATION)')
     print('######################')
-    def_field_dict[0] = engine.non_linear_reg(rigid_aligned_dict[0])
+    # As we use the b0 to MNI transform to register the other bvalues to the MNI, we just need one def field and inverse
+    def_field = engine.non_linear_reg(rigid_aligned_dict[0])
+    inverse_def_field = str(Path(Path(def_field).parent, 'i' + Path(def_field).name))
     print('######################')
     print('APPLY NON-LINEAR + RESLICE')
     print('######################')
     for bval in rigid_aligned_dict:
-        def_field_dict[bval] = def_field_dict[0]
+        def_field_dict[bval] = def_field
+        inv_def_field_dict[bval] = inverse_def_field
         output_img = engine.apply_transform(rigid_aligned_dict[bval], def_field_dict[0], output_vox_size)
         output_nonlinear = str(Path(output_folder, Path(output_img).name))
         shutil.copyfile(output_img, output_nonlinear)
@@ -203,9 +207,9 @@ def dwi_preproc_dict(engine, split_dict, output_folder, output_vox_size=2):
         'rigid': resliced_rigid_dict,
         'affine': resliced_affine_dict,
         'nonlinear': non_linear_dict,
-        'def_field': def_field_dict
+        'def_field': def_field_dict,
+        'inv_def_field': inv_def_field_dict,
     }
-
     return output_dict
 
 
@@ -217,9 +221,10 @@ def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_st
                 for i in range(5):
                     try:
                         shutil.rmtree(output_dir)
-                    except OSError:
+                    except OSError as e:
                         print('Could not delete {}, still trying to preprocess but please verify the output'.format(
                             output_dir))
+                        print(e)
                         time.sleep(5)
             if rerun_strat == 'resume':
                 integrity = data_access.check_output_integrity(output_dir)
@@ -232,12 +237,11 @@ def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_st
                     for i in range(5):
                         try:
                             shutil.rmtree(output_dir)
-                        except OSError:
+                        except OSError as e:
                             print('Could not delete {}, still trying to preprocess but please verify the output'.format(
                                 output_dir))
+                            print(e)
                             time.sleep(5)
-        if not output_dir.is_dir():
-            os.makedirs(output_dir)
         matlab_scripts_folder = rsc.files('mri_preprocessing.matlab')
 
         engine = matlab.engine.start_matlab()
@@ -253,6 +257,7 @@ def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_st
         save_dict = {key: b_dict}
         with open(Path(output_dir, '__preproc_dict.json'), 'w+') as out_file:
             json.dump(save_dict, out_file, indent=4)
+            print(f'Preprocessed folder, dictionary saved at {Path(output_dir, "__preproc_dict.json")}')
         return save_dict
     except Exception as e:
         error_dir = Path(output_root, 'errors')

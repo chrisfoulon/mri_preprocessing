@@ -50,7 +50,7 @@ function [def_field] = non_linear_reg(input_path)
     matlabbatch{1}.spm.spatial.preproc.warp.affreg = 'mni';
     matlabbatch{1}.spm.spatial.preproc.warp.fwhm = 0;
     matlabbatch{1}.spm.spatial.preproc.warp.samp = 3;
-    matlabbatch{1}.spm.spatial.preproc.warp.write = [0 1];
+    matlabbatch{1}.spm.spatial.preproc.warp.write = [1 1];
     output_list = spm_jobman('run',matlabbatch);
     disp(output_list);
     clear matlabbatch;
