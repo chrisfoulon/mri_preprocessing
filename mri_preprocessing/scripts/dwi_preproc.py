@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import importlib_resources as rsc
 import argparse
@@ -40,8 +41,7 @@ def main():
             raise ValueError('{} is not an existing json'.format(json_dict))
         # json_dict = json.load(open(json_dict, 'r'))
     output_root = Path(args.output)
-    if not output_root.is_dir():
-        raise ValueError('{} is not an existing json'.format(output_root))
+    os.makedirs(output_root, exist_ok=True)
     if 'ignore_singletons' in args:
         pair_singletons = False
     else:
