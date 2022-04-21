@@ -268,7 +268,7 @@ def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_st
         return {}
 
 
-def preproc_from_dataset_dict(json_path, output_root, rerun_strat='resume', nb_cores=-1, output_vox_size=2,
+def preproc_from_dataset_dict(json_path, output_root, rerun_strat='resume', nb_cores=1, output_vox_size=2,
                               pair_singletons=True):
     split_dwi_dict = data_access.get_split_dict_from_json(json_path)
     # both keys having the same preproc output
@@ -319,17 +319,22 @@ def preproc_from_dataset_dict(json_path, output_root, rerun_strat='resume', nb_c
     else:
         split_dwi_dict = {k: split_dwi_dict[k] for k in split_dwi_dict if len(split_dwi_dict[k]) >= 1}
 
-    if nb_cores == -1:
-        nb_cores = multiprocessing.cpu_count()
-    pool = ThreadPool(nb_cores)
-
     keys_list = [k for k in split_dwi_dict]
-    list_of_output_dict = pool.map(
-        lambda key: partial_preproc_from_dataset_dict(
-            split_dwi_dict, key, output_root, rerun_strat, output_vox_size), keys_list)
+    if nb_cores != 1:
+        if nb_cores == -1:
+            nb_cores = multiprocessing.cpu_count()
+        pool = ThreadPool(nb_cores)
+        list_of_output_dict = pool.map(
+            lambda key: partial_preproc_from_dataset_dict(
+                split_dwi_dict, key, output_root, rerun_strat, output_vox_size), keys_list)
 
-    pool.close()
-    pool.join()
+        pool.close()
+        pool.join()
+    else:
+        list_of_output_dict = []
+        for k in keys_list:
+            list_of_output_dict.append(
+                partial_preproc_from_dataset_dict(split_dwi_dict, k, output_root, rerun_strat, output_vox_size))
     # for key in split_dwi_dict:
     #     # TODO maybe make a rerun strategy mechanism
     #     output_dir = Path(output_root, key)
