@@ -46,7 +46,6 @@ def get_lesion_to_native_space(lesion_path, b0_path, output_folder):
     engine.addpath(spm_path)
     def_field = engine.non_linear_reg(b0_path)
     inverse_def_field = str(Path(Path(def_field).parent, 'i' + Path(def_field).name))
-    output_img = engine.apply_transform(lesion_path, inverse_def_field, ,'native_space_')
+    output_img = engine.apply_inverse_transform(lesion_path, inverse_def_field, 'native_space_')
     output_nonlinear = str(Path(output_folder, Path(output_img).name))
     shutil.copyfile(output_img, output_nonlinear)
-    make a new matlab script to apply inverse transform from Parashkev's Teams message'

@@ -256,7 +256,7 @@ def create_pseudo_input_dict(root_directory, add_non_head_tag=True):
                 b1000 = str(nii)
         if b0 is None or b1000 is None:
             raise ValueError('Cannot find out which file is a b0 and which is the b1000 in {}'.format(directory))
-        # If we are here we should have a b0 and a b1000 so we can create the dictionary entry
+        # If we are here we should have a b0 and a b1000, so we can create the dictionary entry
         final_dict[directory.name] = {
             "output_dir": str(directory),
             "output_path": b0,

@@ -21,7 +21,7 @@ def reset_orient_mat(engine, img_path, output):
     else:
         output_path = output
     shutil.copyfile(img_path, output_path)
-    engine.reset_orient_mat(str(output_path), nargout=0)
+    engine.reset_orient_mat(str(output_path), str(output), nargout=0)
     return str(output_path)
 
 
