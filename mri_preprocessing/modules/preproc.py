@@ -137,13 +137,16 @@ def dwi_preproc_dict(engine, split_dict, output_folder, output_vox_size=2):
     for b in b_dict:
         b_list = []
         for img_path in b_dict[b]:
-            output_reset = matlab_wrappers.reset_orient_mat(engine, img_path, Path(tmp_folder, Path(img_path).name))
-            out_denoise_test = Path(tmp_folder, 'denoise_' + Path(img_path).name)
-            if not out_denoise_test.is_file():
-                output_denoise = engine.run_denoise(output_reset, tmp_folder, 'denoise_')['pth']['im'][0]
-                b_list.append(output_denoise)
-            else:
-                b_list.append(str(out_denoise_test))
+            output_reset = matlab_wrappers.reset_orient_mat(engine, img_path, Path(tmp_folder))
+            b_list.append(output_reset)
+            # output_reset = matlab_wrappers.reset_orient_mat(engine, img_path, Path(tmp_folder, Path(img_path).name))
+            # out_denoise_test = Path(tmp_folder, 'denoise_' + Path(img_path).name)
+            # # Disabling the denoising as it takes too much time and might be unnecessary
+            # if False and not out_denoise_test.is_file():
+            #     output_denoise = engine.run_denoise(output_reset, tmp_folder, 'denoise_')['pth']['im'][0]
+            #     b_list.append(output_denoise)
+            # else:
+            #     b_list.append(str(out_denoise_test))
         b_denoised_dict[b] = nii_gmean(b_list, str(Path(output_folder, 'geomean_' +
                                                         format_filename(Path(b_list[0]).name, int(round(b))))))
         # now b_dict contains the denoised images (maybe not used later)
@@ -250,6 +253,7 @@ def partial_preproc_from_dataset_dict(split_dwi_dict, key, output_root, rerun_st
         engine.addpath(spm_path)
         engine.addpath(superres_path)
         engine.addpath(patient_preproc_path)
+        engine.cd(patient_preproc_path + '/private')
         os.makedirs(output_dir, exist_ok=True)
         b_dict = dwi_preproc_dict(engine, split_dwi_dict[key], output_dir, output_vox_size)
         if not b_dict:
