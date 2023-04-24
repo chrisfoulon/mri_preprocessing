@@ -30,7 +30,7 @@ display(Nii)
 display([Nii])
 display(out_folder)
 
-[Nii,was_gz,nams] = read_and_copy([Nii],out_folder,'pref_');
+[Nii,was_gz,nams] = read_and_copy([Nii],out_folder,'_');
 
 fprintf('Resetting origin...')
 N    = 1;

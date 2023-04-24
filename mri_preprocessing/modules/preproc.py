@@ -126,8 +126,9 @@ def dwi_preproc_dict(engine, split_dict, output_folder, output_vox_size=2):
             #     b_list.append(output_denoise)
             # else:
             #     b_list.append(str(out_denoise_test))
-        b_denoised_dict[b] = nii_gmean(b_list, str(Path(output_folder, 'geomean_' +
-                                                        format_filename(Path(b_list[0]).name, int(round(b))))))
+        b_denoised_dict[b] = nii_gmean(b_list, str(
+            Path(output_folder, 'geomean_' +
+                 format_filename(Path(b_list[0]).name, int(round(b))) + '.nii.gz')))
         # now b_dict contains the denoised images (maybe not used later)
         b_dict[b] = b_list
 
