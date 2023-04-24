@@ -131,7 +131,7 @@ def dwi_preproc_dict(engine, split_dict, output_folder, output_vox_size=2):
         shutil.rmtree(output_folder)
         return {}
     print('######################')
-    print('RESET ORIGIN, DENOISING AND GEOMEAN')
+    print('RESET ORIGIN AND GEOMEAN')
     print('######################')
     b_denoised_dict = {}
     for b in b_dict:
