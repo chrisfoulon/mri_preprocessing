@@ -36,9 +36,9 @@ def check_spm_modules():
 
 def format_filename(filename, bval):
     if 'bval' in filename:
-        return filename.split('bval')[0] + 'bval{}.nii'.format(int(round(bval)))
+        return filename.split('bval')[0] + 'bval{}.nii.gz'.format(int(round(bval)))
     else:
-        return filename.split('.nii')[0] + 'bval{}.nii'.format(int(round(bval)))
+        return filename.split('.nii')[0] + 'bval{}.nii.gz'.format(int(round(bval)))
 
 
 # TODO IMPORTANT we want to gmean only the images with THE SAME BVAL
@@ -72,6 +72,7 @@ def nii_gmean(nii_array, output_path):
     data = np.stack(np.array([nii.get_fdata() for nii in nii_array]), axis=3)
 
     gmeaned = gmean(data, axis=3)
+    print('gmeaned shape: {}'.format(gmeaned.shape))
     output_path = Path(output_path).absolute()
     nib.save(nib.Nifti1Image(gmeaned, nii_array[0].affine), output_path)
     return str(output_path)
@@ -128,7 +129,7 @@ def dwi_preproc_dict(engine, split_dict, output_folder, output_vox_size=2):
             #     b_list.append(str(out_denoise_test))
         b_denoised_dict[b] = nii_gmean(b_list, str(
             Path(output_folder, 'geomean_' +
-                 format_filename(Path(b_list[0]).name, int(round(b))) + '.nii.gz')))
+                 format_filename(Path(b_list[0]).name, int(round(b))))))
         # now b_dict contains the denoised images (maybe not used later)
         b_dict[b] = b_list
 
