@@ -77,27 +77,6 @@ def nii_gmean(nii_array, output_path):
     return str(output_path)
 
 
-def preproc_folder(b0_list, b1000_list, output_folder):
-    """
-
-    Parameters
-    ----------
-    b0_list
-    b1000_list
-    output_folder
-
-    Returns
-    -------
-    Notes
-    -----
-    1) denoise all the images
-    2) rigid align all the images
-    """
-    if isinstance(b0_list, list):
-        return  # average the images into one
-    return
-
-
 def dwi_preproc_dict(engine, split_dict, output_folder, output_vox_size=2):
     """
 
@@ -322,7 +301,8 @@ def preproc_from_dataset_dict(json_path, output_root, rerun_strat='resume', nb_c
         split_dwi_dict = new_split_dwi
     else:
         split_dwi_dict = {k: split_dwi_dict[k] for k in split_dwi_dict if len(split_dwi_dict[k]) >= 1}
-
+    print(f'Preprocessing {len(split_dwi_dict)} DWI')
+    print(f'split_dwi_dict : {split_dwi_dict}')
     keys_list = [k for k in split_dwi_dict]
     if nb_cores != 1:
         if nb_cores == -1:
