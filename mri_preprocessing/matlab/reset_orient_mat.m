@@ -25,6 +25,11 @@ function [Nii] = reset_orient_mat(Nii, out_folder)
 if nargin < 3, vx = []; end
 only_neg = 0;
 deg      = 1;
+% display every parameter given to read_and_copy
+display(Nii)
+display([Nii])
+display(out_folder)
+
 [Nii,was_gz,nams] = read_and_copy([Nii],out_folder,'pref_');
 
 fprintf('Resetting origin...')
