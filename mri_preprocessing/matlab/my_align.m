@@ -38,9 +38,9 @@ tpm = [repmat(tpm,[6 1]) num2str((1:6)')];
 tpm = spm_load_priors8(tpm);
 
 % Do the affine registration
-%V = spm_vol(P);
-V = nifti(P);
-
+V = spm_vol(P);
+%V = nifti(P);
+display(V);
 M               = V(1).mat;
 c               = (V(1).dim+1)/2;
 V(1).mat(1:3,4) = -M(1:3,1:3)*c(:);

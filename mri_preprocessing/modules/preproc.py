@@ -36,9 +36,9 @@ def check_spm_modules():
 
 def format_filename(filename, bval):
     if 'bval' in filename:
-        return filename.split('bval')[0] + 'bval{}.nii.gz'.format(int(round(bval)))
+        return filename.split('bval')[0] + 'bval{}.nii'.format(int(round(bval)))
     else:
-        return filename.split('.nii')[0] + 'bval{}.nii.gz'.format(int(round(bval)))
+        return filename.split('.nii')[0] + 'bval{}.nii'.format(int(round(bval)))
 
 
 # TODO IMPORTANT we want to gmean only the images with THE SAME BVAL
@@ -116,7 +116,11 @@ def dwi_preproc_dict(engine, split_dict, output_folder, output_vox_size=2):
     for b in b_dict:
         b_list = []
         for img_path in b_dict[b]:
+            # shutil.copyfile(img_path, Path(tmp_folder, Path(img_path).name))
+            # img_path = Path(tmp_folder, Path(img_path).name)
+            # print('resetting orientation now input: {}'.format(Path(img_path).name))
             output_reset = matlab_wrappers.reset_orient_mat(engine, img_path, Path(tmp_folder))
+            # print('resetting orientation done output: {}'.format(Path(output_reset).name))
             b_list.append(output_reset)
             # output_reset = matlab_wrappers.reset_orient_mat(engine, img_path, Path(tmp_folder, Path(img_path).name))
             # out_denoise_test = Path(tmp_folder, 'denoise_' + Path(img_path).name)
@@ -126,15 +130,21 @@ def dwi_preproc_dict(engine, split_dict, output_folder, output_vox_size=2):
             #     b_list.append(output_denoise)
             # else:
             #     b_list.append(str(out_denoise_test))
-        b_denoised_dict[b] = nii_gmean(b_list, str(
-            Path(output_folder, 'geomean_' +
-                 format_filename(Path(b_list[0]).name, int(round(b))))))
-        print('######################DEBUG######################')
-        print(f'b_denised_dict[{b}] = {b_denoised_dict[b]}')
-        print(nib.load(b_denoised_dict[b]).shape)
-        print('######################')
+        if len(b_list) == 1:
+            b_denoised_dict[b] = b_list[0]
+        else:
+            b_denoised_dict[b] = nii_gmean(b_list, str(
+                Path(output_folder, 'geomean_' +
+                     format_filename(Path(b_list[0]).name, int(round(b))))))
+    #     print(f'The file {b_denoised_dict[b]} has been created: {Path(b_denoised_dict[b]).is_file()}')
+    # print(b_denoised_dict)
+    # exit()
+        # print('######################DEBUG######################')
+        # print(f'b_denised_dict[{b}] = {b_denoised_dict[b]}')
+        # print(nib.load(b_denoised_dict[b]).shape)
+        # print('######################')
         # now b_dict contains the denoised images (maybe not used later)
-        b_dict[b] = b_list
+        # b_dict[b] = b_list
 
     print('######################')
     print('RIGID AND AFFINE ALIGNMENT OF THE GEOMEAN IMAGES')
@@ -190,7 +200,7 @@ def dwi_preproc_dict(engine, split_dict, output_folder, output_vox_size=2):
         non_linear_dict[bval] = output_nonlinear
 
     output_dict = {
-        'denoise': b_denoised_dict,
+        # 'denoise': b_denoised_dict,
         'rigid': resliced_rigid_dict,
         'affine': resliced_affine_dict,
         'nonlinear': non_linear_dict,

@@ -21,14 +21,12 @@
 %
 %end
 
-function [Nii] = reset_orient_mat(Nii, out_folder)
+function [f] = reset_orient_mat(Nii, out_folder)
 if nargin < 3, vx = []; end
 only_neg = 0;
 deg      = 1;
 % display every parameter given to read_and_copy
-display(Nii)
-display([Nii])
-display(out_folder)
+
 
 [Nii,was_gz,nams] = read_and_copy([Nii],out_folder,'_');
 
@@ -44,11 +42,10 @@ for n=1:N
         continue
     end
     f = Nii{1}(n).dat.fname;
-    f = nm_reorient(f,vx,'ro',deg);
-
+    f = nm_reorient(f,vx,'reo',deg);
     M{n} = do_reset_origin(f);
-
-    Nii{1}(n) = nifti(f);
+    % We do not care about that anymore
+    %Nii{1}(n) = nifti(f);
 end
 
 if numel(Nii) > 1
@@ -62,7 +59,7 @@ if numel(Nii) > 1
         end
 
         f = Nii{2}(n).dat.fname;
-        f = nm_reorient(f,vx,'ro',0);
+        f = nm_reorient(f,vx,'reo',0);
         do_reset_origin(f);
 
         Nii{2}(n) = nifti(f);
