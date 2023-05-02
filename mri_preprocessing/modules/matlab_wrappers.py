@@ -21,7 +21,7 @@ def reset_orient_mat(engine, img_path, output):
     else:
         output_path = output
     shutil.copyfile(img_path, output_path)
-    engine.reset_orient_mat(str(output_path), str(output), nargout=0)+
+    engine.reset_orient_mat(str(output_path), str(output), nargout=0)
     # The modified image starts with 'reo_' and if output_path ends with '.gz' then remove '.gz'
     if output_path.suffix == '.gz':
         return str(Path(output, 'reo_' + Path(output_path).name).with_suffix(''))
