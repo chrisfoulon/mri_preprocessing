@@ -16,8 +16,21 @@ spm_path = ''
 superres_path = ''
 patient_preproc_path = ''
 
+
 def rigid_affine_only(img_paths_list, output_dir, output_vox_size=2):
-    check_spm_modules()
+    engine = matlab.engine.start_matlab()
+    which = matlab_wrappers.matlab_check_module_path(engine, 'spm')
+    if which:
+        global spm_path
+        spm_path = which
+    which = matlab_wrappers.matlab_check_module_path(engine, 'spm_superres')
+    if which:
+        global superres_path
+        superres_path = which
+    which = matlab_wrappers.matlab_check_module_path(engine, 'RunPreproc')
+    if which:
+        global patient_preproc_path
+        patient_preproc_path = which
     engine = matlab.engine.start_matlab()
     matlab_scripts_folder = rsc.files('mri_preprocessing.matlab')
     engine.addpath(str(matlab_scripts_folder))

@@ -24,6 +24,7 @@ setup(
                       "scipy",
                       "pydicom",
                       "tqdm",
+                      "importlib_resources",
                       "bcblib>=0.2.9"],
 
     package_data={
